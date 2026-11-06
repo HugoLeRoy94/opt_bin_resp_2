@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+data/
+*.pt
+*.png
+*.svg
+*.pdf
+*.callgrind
+run_*.log
+gpu_mem_*.csv
+.pytest_cache/
+*.egg-info/

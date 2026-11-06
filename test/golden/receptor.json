@@ -1,0 +1,14 @@
+{
+  "conditional_entropy_response": [
+    2.573801636695862
+  ],
+  "full_array_entropy": [
+    3.771733522415161
+  ],
+  "mutual_information_kt": [
+    1.2586383819580078
+  ],
+  "response_evaluation_samples": [
+    128
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "conditional_entropy_response_grouped": [
+    2.5903916358947754
+  ],
+  "conditional_entropy_response_grouped_counting": [
+    2.590391516685486
+  ],
+  "grouped_count_conditional_entropy": [
+    2.5903916358947754
+  ],
+  "grouped_count_conditional_entropy_counting": [
+    2.590391516685486
+  ],
+  "grouped_count_entropy": [
+    3.6667345735482906
+  ],
+  "grouped_count_entropy_counting_mm": [
+    3.6512919140975635
+  ],
+  "grouped_count_entropy_counting_plugin": [
+    3.521674781517696
+  ],
+  "grouped_count_entropy_upper": [
+    5.0
+  ],
+  "grouped_counting_K_hat": [
+    24
+  ],
+  "grouped_counting_log2B": [
+    7.0
+  ],
+  "grouped_counting_missing_mass": [
+    0.0390625
+  ],
+  "grouped_counting_samples": [
+    128
+  ],
+  "grouped_counting_unique_fraction": [
+    0.1875
+  ],
+  "grouped_label_entropy": [
+    0.0
+  ],
+  "grouped_label_entropy_counting": [
+    0.0
+  ],
+  "grouped_n_groups": [
+    5
+  ],
+  "grouped_n_states": [
+    32
+  ],
+  "mutual_information_grouped": [
+    1.0763429376535152
+  ],
+  "mutual_information_grouped_counting_mm": [
+    1.0609003974120776
+  ],
+  "mutual_information_grouped_counting_plugin": [
+    0.93128326483221
+  ],
+  "response_entropy_grouped": [
+    3.6667345735482906
+  ],
+  "response_entropy_grouped_counting_mm": [
+    3.6512919140975635
+  ],
+  "response_entropy_grouped_counting_plugin": [
+    3.521674781517696
+  ],
+  "response_evaluation_samples": [
+    128
+  ]
+}
