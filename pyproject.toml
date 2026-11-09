@@ -5,7 +5,7 @@ requires-python = ">=3.10"
 dependencies = ["torch", "numpy", "pandas", "scipy"]
 
 [project.optional-dependencies]
-analysis = ["matplotlib", "umap-learn", "scikit-learn"]
+analysis = ["matplotlib", "seaborn", "umap-learn", "scikit-learn"]
 
 [tool.setuptools]
 packages = ["model", "estimate", "train", "analysis"]

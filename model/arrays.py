@@ -14,6 +14,7 @@ makes a small array resemble a biological repertoire rather than a random one.
 """
 import itertools
 import random
+from math import comb, gcd
 
 import torch
 
@@ -115,6 +116,29 @@ _STRATEGIES = {
     (True,  "uniform_random"): ordered_random,
     (True,  "cascading"):      ordered_cascading,
 }
+
+
+def pool_size(n_genes, k_sub, use_interface_model=False):
+    """How many DISTINCT receptors exist for this gene count and model.
+
+    multiset model   combinations with replacement: C(n + k - 1, k).
+    interface model  necklaces of length k over n symbols, rotations identified
+                     and reflections kept distinct, so by Burnside
+                     (1/k) * sum_{d | k} phi(d) * n^(k/d).
+
+    The pool saturates fast at small n_genes: 2 genes with k_sub=5 gives only 8
+    distinct rings, so a sweep over R = 2, 4, 6, 8, 10 cannot reach its last
+    point. Check this before asking for an array.
+    """
+    if not use_interface_model:
+        return comb(n_genes + k_sub - 1, k_sub)
+    total = 0
+    for d in range(1, k_sub + 1):
+        if k_sub % d == 0:
+            # Euler totient of d, by definition rather than by import.
+            phi = sum(1 for i in range(1, d + 1) if gcd(i, d) == 1)
+            total += phi * n_genes ** (k_sub // d)
+    return total // k_sub
 
 
 def build_heteromer_array(n_genes, k_sub, R_target, strategy="cascading",

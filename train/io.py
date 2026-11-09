@@ -115,9 +115,16 @@ class SweepLogger:
     """Creates the sweep directory and vends one RunLogger per run."""
 
     def __init__(self, runs, name, data_root):
+        # Second resolution keeps directory names readable, but two sweeps
+        # launched inside one second must NOT land in the same directory: their
+        # runs would later be read as one sweep. Suffix instead of merging.
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.root = Path(data_root) / f"{name}_{stamp}"
-        self.root.mkdir(parents=True, exist_ok=True)
+        attempt = 1
+        while self.root.exists():
+            attempt += 1
+            self.root = Path(data_root) / f"{name}_{stamp}_{attempt}"
+        self.root.mkdir(parents=True)
         self.axes = varying_fields(runs)
         (self.root / "sweep_config.json").write_text(
             json.dumps([r.to_dict() for r in runs], indent=4, cls=_Encoder))

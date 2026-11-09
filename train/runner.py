@@ -63,7 +63,7 @@ class Runner:
 
     # -- construction ------------------------------------------------------
 
-    def _build(self):
+    def _build(self, verbose=True):
         cfg = self.config
         receptor_indices = torch.tensor(cfg.receptor_indices, dtype=torch.long,
                                         device=self.device)
@@ -78,8 +78,10 @@ class Runner:
                 repertoires=cfg.cell_receptors).to(self.device)
             self.readout = CellReadout(cells.W, k_sub=cfg.k_sub).to(self.device)
             self.grouping = CellGrouping(cells.W).to(self.device)
-            print(f"[cells] {self.grouping.n_cells} cells -> "
-                  f"{self.grouping.n_groups} groups, {self.grouping.n_states} count states")
+            if verbose:
+                print(f"[cells] {self.grouping.n_cells} cells -> "
+                      f"{self.grouping.n_groups} groups, "
+                      f"{self.grouping.n_states} count states")
 
         env = LigandEnvironment(
             cfg.n_genes, cfg.n_families,
@@ -104,11 +106,11 @@ class Runner:
         # one matmul. Removes the (B, L, R, k_sub) intermediate entirely.
         env.bind_receptors(receptor_indices)
         n_src = env.composition.shape[0]
-        if cfg.use_interface_model:
+        if verbose and cfg.use_interface_model:
             print(f"[composition] R={receptor_indices.shape[0]}  "
                   f"{receptor_indices.numel()} pocket slots -> {n_src} distinct "
                   f"({receptor_indices.numel() / max(n_src, 1):.0f}x fewer)")
-        else:
+        elif verbose:
             print(f"[composition] R={receptor_indices.shape[0]}  genes={n_src} "
                   f"(drops the {cfg.k_sub}x-wide gather)")
 
