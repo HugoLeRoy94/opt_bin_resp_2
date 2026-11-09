@@ -34,6 +34,7 @@ _SEQUENCE_FIELDS = {
     "cell_receptors":        lambda v: len(v) if v else 0,
     "cell_size_pmf":         lambda v: len(v) if v else 0,
     "measurement_fns":       lambda v: ",".join(v) if v else "",
+    "tags":                  lambda v: len(v) if v else 0,
     "final_measurement_fns": lambda v: ",".join(v) if v else "",
     "family_weights":        lambda v: ",".join(f"{x:g}" for x in v) if v else "",
     "kernel_params":         lambda v: v[0] if v else np.nan,
@@ -54,6 +55,16 @@ def _row(config: Config, results: dict):
             row[name] = value[0] if len(value) == 1 else ",".join(map(str, value))
         else:
             row[name] = value
+    # Labels the sweep script attached, each as its own column. Derived
+    # quantities below win on a name clash, since they come from what the run
+    # actually was rather than from what it was labelled.
+    row.update(config.tags or {})
+    # Realised mean genes per cell, the x axis of every cell figure. It is
+    # derived rather than requested: a target of 2.25 genes is met by mixing
+    # 2-gene and 3-gene cells, so the realised value is what was actually run.
+    gene_sets = config.cell_gene_sets
+    row["genes_per_cell"] = (float(np.mean([len(gs) for gs in gene_sets]))
+                             if gene_sets else np.nan)
     # Same rule the old index used: an unset n_receptors means Config fell back
     # to one homomer per gene. Note a cascading array with R == n_genes is the
     # SAME array, so this labels intent, not structure.
@@ -167,17 +178,21 @@ def across_replicates(points, keys, spread="std", metrics=None):
                    if c not in keys and pd.api.types.is_numeric_dtype(points[c])]
 
     grouped = points.groupby(keys, sort=True)
-    out = grouped[metrics].mean()
+    mean = grouped[metrics].mean()
     counts = grouped.size()
     # ddof=1 is the sample std. One world gives NaN, which must stay NaN.
     deviation = grouped[metrics].std(ddof=1)
     if spread == "sem":
         deviation = deviation.div(np.sqrt(counts), axis=0)
-    for m in metrics:
-        out[f"{m} lo"] = out[m] - deviation[m]
-        out[f"{m} hi"] = out[m] + deviation[m]
-    out["n"] = counts
-    out["spread"] = spread
+    # Built in one concat: inserting column by column fragments the frame and
+    # pandas warns about it, which would break the no-output rule.
+    out = pd.concat(
+        [mean,
+         (mean - deviation).rename(columns=lambda m: f"{m} lo"),
+         (mean + deviation).rename(columns=lambda m: f"{m} hi"),
+         counts.rename("n"),
+         pd.Series(spread, index=mean.index, name="spread")],
+        axis=1)
     return out.reset_index()
 
 

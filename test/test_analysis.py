@@ -106,3 +106,34 @@ def test_one_world_gives_no_band():
         points = across_replicates(runs("goal", data_root=tmp), keys=["n_genes"])
         assert (points["n"] == 1).all()
         assert points["full_array_entropy lo"].isna().all()
+
+
+def test_tags_become_columns():
+    """Tags record what a run MEANT, which the config cannot express.
+
+    A sampled gene-set strategy draws the number of genes per cell, so the
+    realised mean drifts from the requested one and cannot be rounded back.
+    Without the target recorded, every world lands on its own x and no point
+    has more than one run behind it.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp) / "goal"
+        configs = sweep(dict(RECEPTOR), n_genes=[3, 4],
+                        tags=[{"arm": "a", "target_genes": 1.5},
+                              {"arm": "b", "target_genes": 2.5}])
+        logger = SweepLogger(configs, "demo", root)
+        for config in configs:
+            logger.run_logger(config).save_results(RESULT)
+        frame = runs("goal", data_root=tmp)
+        assert frame["arm"].tolist() == ["a", "b"]
+        assert frame["target_genes"].tolist() == [1.5, 2.5]
+        assert across_replicates(frame, keys=["arm"]).shape[0] == 2
+
+
+def test_tags_never_reach_the_model():
+    """Tags are descriptive. Two configs differing only in tags are the same run."""
+    a = Config(**dict(RECEPTOR, tags={"note": "left"}))
+    b = Config(**dict(RECEPTOR, tags={"note": "right"}))
+    assert a.receptor_indices == b.receptor_indices
+    physics = {k: v for k, v in a.to_dict().items() if k != "tags"}
+    assert physics == {k: v for k, v in b.to_dict().items() if k != "tags"}

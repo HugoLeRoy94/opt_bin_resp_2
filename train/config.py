@@ -93,6 +93,17 @@ class Config:
     # Exact enumeration only. grouped_kt_mi / grouped_counting do not use it.
     cell_grouped_max_states: int = 65536
 
+    # --- Labels. Descriptive only; nothing in model/, estimate/ or train/ ever
+    # reads them. They record what a run MEANT, as opposed to what it did:
+    # the design target a sweep asked for, which arm it belongs to. Config
+    # records the gene sets a cell HAS, never the number that was requested,
+    # and for a sampled strategy the two differ. analysis.load expands each key
+    # into its own column.
+    #
+    # Prefer deriving a quantity from the config where you can. A tag that
+    # disagrees with the config is a label error nothing will catch.
+    tags: Dict[str, Any] = field(default_factory=dict)
+
     def is_cell_mode(self) -> bool:
         return (self.cell_gene_sets is not None or self.n_cells is not None
                 or self.cell_receptors is not None)
