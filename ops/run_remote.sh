@@ -43,8 +43,47 @@ SESSION="${TASK}_${SCRIPT}_$(date +%H%M%S)"
 MEM_LOG="$REMOTE_DATA/${TASK}/gpu_mem_${SESSION}.csv"
 RUN_LOG="$REMOTE_DATA/${TASK}/run_${SESSION}.log"
 
+# ConnectTimeout so an unreachable host fails in seconds rather than hanging.
+SSH_OPTS=(-o ConnectTimeout=10)
+
+# Is the repository there at all? `git pull` in a missing directory would just
+# fail obscurely, and the first time anyone runs this it will not be there.
+if ! ssh "${SSH_OPTS[@]}" "$SERVER" "test -d '$REMOTE_ROOT/.git'" 2>/dev/null; then
+    echo "No git repository at $SERVER:$REMOTE_ROOT" >&2
+    echo >&2
+    echo "Clone it once:" >&2
+    echo "  ssh $SERVER 'git clone https://github.com/HugoLeRoy94/opt_bin_resp_2.git $REMOTE_ROOT'" >&2
+    echo >&2
+    echo "Or point at an existing checkout:" >&2
+    echo "  OCTOPUS_REMOTE_ROOT=/path/to/repo $0 $*" >&2
+    exit 1
+fi
+
 # Pull first, visibly: fail before anything is launched rather than halfway in.
-ssh "$SERVER" "cd $REMOTE_ROOT && git pull"
+#
+# Through `bash -lc`, a LOGIN shell, so the cluster's profile is sourced. A
+# plain `ssh host "cmd"` runs a non-login non-interactive shell that reads
+# neither .bashrc nor .profile, so http_proxy exported there would be missing
+# and the pull would fail to reach github even though an interactive ssh works.
+#
+# GIT_TERMINAL_PROMPT=0 is what stops this HANGING: ssh allocates no terminal,
+# so a credential prompt would go to a pipe nobody reads and the script would
+# wait forever with no output. With it, git fails and says so.
+if ! ssh "${SSH_OPTS[@]}" "$SERVER" \
+        "bash -lc \"cd '$REMOTE_ROOT' && GIT_TERMINAL_PROMPT=0 git pull\""; then
+    echo >&2
+    echo "git pull failed on the cluster." >&2
+    echo >&2
+    echo "If it timed out reaching github, the machine is behind the university" >&2
+    echo "proxy. Teach git about it once, in git config rather than the shell" >&2
+    echo "environment, so it applies to non-login shells like this one:" >&2
+    echo "  ssh $SERVER 'git config --global http.proxy  http://proxy.unige.it:8080/'" >&2
+    echo "  ssh $SERVER 'git config --global https.proxy http://proxy.unige.it:8080/'" >&2
+    echo >&2
+    echo "If it asked for credentials, store them once:" >&2
+    echo "  ssh -t $SERVER 'cd $REMOTE_ROOT && git config credential.helper store && git pull'" >&2
+    exit 1
+fi
 
 MON="mkdir -p $REMOTE_DATA/$TASK; $REMOTE_ROOT/ops/monitor_gpu.sh $GPU 5 $MEM_LOG >/dev/null 2>&1 &"
 # -T disables the container TTY so output can be piped to tee. python3 -u:

@@ -89,6 +89,37 @@ suggests the three sizes. `doc/batching.md` explains every cap and the safety
 factors, which were fitted on an A100. They are memory models, not
 measurements: if a run dies with an out-of-memory error, lower the number.
 
+## On the cluster, once
+
+The cluster has no direct outbound HTTPS, so teach git about the university
+proxy first. In `git config`, not the shell environment: `run_remote.sh` runs
+git over ssh, and exported variables in `.bashrc` or `.profile` are not read by
+every kind of shell.
+
+```bash
+ssh leroy@10.187.172.7 'git config --global http.proxy  http://proxy.unige.it:8080/'
+ssh leroy@10.187.172.7 'git config --global https.proxy http://proxy.unige.it:8080/'
+```
+
+The launcher pulls into an existing checkout; it does not create one.
+
+```bash
+ssh leroy@10.187.172.7 'git clone https://github.com/HugoLeRoy94/opt_bin_resp_2.git /home/leroy/opt_bin_resp_2'
+```
+
+If that asks for credentials, store them once so later pulls are
+non-interactive. A prompt inside `run_remote.sh` would never be seen, because
+the commands run over ssh with no terminal attached:
+
+```bash
+ssh -t leroy@10.187.172.7 'cd /home/leroy/opt_bin_resp_2 && git config credential.helper store && git pull'
+```
+
+No install step and no rebuild: the container mounts the source and sets
+`PYTHONPATH=/app`, and `requirements.txt` is a subset of what the existing
+image already has. Override the paths with `OCTOPUS_REMOTE_ROOT`,
+`OCTOPUS_REMOTE_DATA_ROOT` and `OCTOPUS_DATA_SERVER` if they differ.
+
 ## On the cluster
 
 ```bash
