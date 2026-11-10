@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from analysis import curation
 from train.config import Config
 from train.io import find_sweeps, iter_runs, load_run
 
@@ -105,9 +106,13 @@ def runs(goal, data_root=None, sweeps=None, latest_only=False):
 
     rows = []
     for sweep_root in roots:
+        # "keep", "delete" or "review" when nobody has judged it yet. Surfaced
+        # rather than enforced: a figure chooses whether to filter on it.
+        state, label = curation.state_of(goal, sweep_root.name)
         for config, _stats, results, run_dir in iter_runs(sweep_root):
             rows.append(dict(_row(config, results),
-                             sweep=sweep_root.name, run_dir=str(run_dir)))
+                             sweep=sweep_root.name, run_dir=str(run_dir),
+                             curation=state, curation_label=label))
     if not rows:
         raise RuntimeError(
             f"{len(roots)} sweep(s) under {root} but nothing to load. A run is "

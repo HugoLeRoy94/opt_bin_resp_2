@@ -1,0 +1,49 @@
+# Cluster runner. One task per invocation:
+#
+#   MY_GPU=0 docker compose -f docker-compose.server.yaml run --rm gpu-runner \
+#       python3 -m tasks.analytic_baseline.train_sweep_R --data_root /app/data/analytic_baseline
+#
+# ops/run_remote.sh wraps this in tmux with a GPU monitor; prefer it.
+#
+# REUSES THE EXISTING IMAGE. requirements.txt is a strict subset of what the
+# opt_bin_resp image already installed, and PYTHONPATH is set below rather than
+# baked in, so nothing needs rebuilding. Check the name with `docker images`
+# and override it if it differs:
+#
+#   OCTOPUS_IMAGE=opt_bin_resp_gpu-runner docker compose -f ... run --rm gpu-runner ...
+#
+# `build:` stays as the fallback: compose builds only when the image is absent.
+services:
+  gpu-runner:
+    user: "root"
+    image: ${OCTOPUS_IMAGE:-opt_bin_resp-gpu-runner}
+    build:
+      context: .
+      args:
+        http_proxy: ${http_proxy:-}
+        https_proxy: ${https_proxy:-}
+        no_proxy: ${no_proxy:-}
+    shm_size: '16gb'
+    working_dir: /app
+    volumes:
+      # The four library packages are read-only: a run must never edit them.
+      - ./model:/app/model:ro,z
+      - ./estimate:/app/estimate:ro,z
+      - ./train:/app/train:ro,z
+      - ./analysis:/app/analysis:ro,z
+      - ./tasks:/app/tasks:ro,z
+      - ./ops:/app/ops:ro,z
+      # Results. The only writable mount.
+      - ${OCTOPUS_REMOTE_DATA_ROOT:-/storage/leroy/data}:/app/data:z
+    environment:
+      - PYTHONPATH=/app
+      - http_proxy=${http_proxy:-}
+      - https_proxy=${https_proxy:-}
+      - no_proxy=${no_proxy:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${MY_GPU:-0}"]
+              capabilities: [gpu]

@@ -89,6 +89,53 @@ suggests the three sizes. `doc/batching.md` explains every cap and the safety
 factors, which were fitted on an A100. They are memory models, not
 measurements: if a run dies with an out-of-memory error, lower the number.
 
+## On the cluster
+
+```bash
+ops/run_remote.sh <task> <script> [gpu] [-- args]
+
+ops/run_remote.sh analytic_baseline train_sweep_R          # GPU 0
+ops/run_remote.sh analytic_baseline train_sweep_R 2 -- --R 2 4 8
+ops/run_remote.sh analytic_baseline test_counting 0
+```
+
+It pulls, then launches the task in a detached tmux session with a GPU memory
+monitor beside it, and prints how to attach, list and kill. When the run ends
+the GPU trace and the stdout log are moved into the sweep directory, so a later
+sync brings them back with the runs.
+
+Kill one run with `tmux kill-session`, never `tmux kill-server`: that kills
+every session on a shared machine.
+
+**The container is the existing one.** `requirements.txt` is a strict subset of
+what the `opt_bin_resp` image already installed, and `PYTHONPATH=/app` is set in
+the compose file rather than baked into the image, so nothing needs rebuilding.
+If `docker images` shows a different tag:
+
+```bash
+OCTOPUS_IMAGE=<tag> ops/run_remote.sh ...
+```
+
+Scripts run as `python3 -m tasks.<task>.<script>` from `/app`, which is what
+puts the packages on the path. Running the file by its path would not.
+
+## Results
+
+```bash
+python ops/manage_data.py curate [goal ...]     # label sweeps keep or delete
+python ops/manage_data.py sync   [goal ...]     # apply deletions, mirror down
+```
+
+The cluster is authoritative for raw data; `curation.csv` is authoritative for
+the human keep/delete decision, and is tracked in git so it survives the data
+being deleted or re-synced. A kept sweep needs a short label saying why.
+
+`sync` mirrors with `--delete`, so a sweep that exists only locally disappears.
+It names those first and asks before removing anything.
+
+`analysis.load.runs()` surfaces the decision as a `curation` column, so a figure
+can restrict itself to kept sweeps. It does not filter on it by itself.
+
 ## Two things the code will refuse to do
 
 **Train on entropy.** Every objective maximizes a bound on `I(Y;X)`. Maximizing

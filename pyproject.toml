@@ -5,7 +5,7 @@ requires-python = ">=3.10"
 dependencies = ["torch", "numpy", "pandas", "scipy"]
 
 [project.optional-dependencies]
-analysis = ["matplotlib", "seaborn", "umap-learn", "scikit-learn"]
+analysis = ["matplotlib", "seaborn", "umap-learn"]
 
 # tasks/ is included so a figure can be run from anywhere: an IDE interactive
 # cell sets the working directory to the workspace root, not the file's folder,

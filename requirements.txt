@@ -1,0 +1,14 @@
+# torch, CUDA and cuDNN come from the NVIDIA base image; installing torch here
+# would shadow the tuned build.
+#
+# This is a strict SUBSET of what the opt_bin_resp image already has, so that
+# image can be reused without a rebuild. scikit-learn is not listed because
+# nothing imports it directly: umap-learn requires it.
+numpy
+scipy
+pandas
+tqdm
+pytest
+matplotlib
+seaborn
+umap-learn
