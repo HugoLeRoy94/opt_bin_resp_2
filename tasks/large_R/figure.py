@@ -23,23 +23,31 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from analysis.load import across_replicates, load_model, runs
+from tasks._lib import large_r as LR
 
 GOAL = "large_R"
 MI = "codeword_entropy_mm"
 CEIL = "codeword_entropy_log2B"
 
 frame = runs(GOAL, latest_only=True)
-points = across_replicates(frame, keys=["latent_dim", "conc_std_log10", "n_genes"])
+# The bounds are a function of (R, D), both config fields, so they are
+# recomputed rather than carried as labels that could drift from them.
+frame = frame.assign(
+    shell_bound=[LR.log2_shell_bound(int(r.n_genes), int(r.latent_dim))
+                 for r in frame.itertuples()],
+    ladder_bound=[LR.log2_ladder_bound(int(r.n_genes), int(r.latent_dim))
+                  for r in frame.itertuples()])
+points = across_replicates(frame, keys=["latent_dim", "conc_std", "n_genes"])
 dims = sorted(points.latent_dim.unique())
 
 # %%
 fig, axes = plt.subplots(1, len(dims), figsize=(5.5 * len(dims), 4.4), squeeze=False)
 for ax, D in zip(axes[0], dims):
     panel = points[points.latent_dim == D]
-    stds = sorted(panel.conc_std_log10.unique())
+    stds = sorted(panel.conc_std.unique())
     colours = plt.colormaps["viridis"](np.linspace(0, .85, len(stds)))
     for colour, cs in zip(colours, stds):
-        curve = panel[panel.conc_std_log10 == cs].sort_values("n_genes")
+        curve = panel[panel.conc_std == cs].sort_values("n_genes")
         ax.plot(curve.n_genes, curve[MI], "o-", color=colour,
                 label=f"conc_std = {cs:g}")
         ax.fill_between(curve.n_genes, curve[f"{MI} lo"], curve[f"{MI} hi"],
@@ -68,19 +76,19 @@ for _, row in frame.iterrows():
     u = env.unit_latent.detach().cpu().numpy()[receptor_indices[:, 0].cpu().numpy()]
     radius = np.linalg.norm(u, axis=1)
     norms.append(dict(latent_dim=row.latent_dim, n_genes=row.n_genes,
-                      conc_std_log10=row.conc_std_log10,
+                      conc_std=row.conc_std,
                       norm_spread=float(radius.std() / radius.mean())))
 import pandas as pd                                                  # noqa: E402
 spread = across_replicates(pd.DataFrame(norms),
-                           keys=["latent_dim", "conc_std_log10", "n_genes"])
+                           keys=["latent_dim", "conc_std", "n_genes"])
 
 fig, axes = plt.subplots(1, len(dims), figsize=(5.5 * len(dims), 4), squeeze=False)
 for ax, D in zip(axes[0], dims):
     panel = spread[spread.latent_dim == D]
-    stds = sorted(panel.conc_std_log10.unique())
+    stds = sorted(panel.conc_std.unique())
     colours = plt.colormaps["viridis"](np.linspace(0, .85, len(stds)))
     for colour, cs in zip(colours, stds):
-        curve = panel[panel.conc_std_log10 == cs].sort_values("n_genes")
+        curve = panel[panel.conc_std == cs].sort_values("n_genes")
         ax.plot(curve.n_genes, curve.norm_spread, "o-", color=colour,
                 label=f"conc_std = {cs:g}")
     ax.axhline(0, color="k", lw=.8, ls="--")

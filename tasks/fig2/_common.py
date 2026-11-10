@@ -166,12 +166,10 @@ def build(strategy, condition, data_root, dry_run=False):
         # for, and under the bernoulli strategy the realised mean drifts from it
         # by more than the spacing between targets. The realised value is
         # derived at load time as genes_per_cell, so it is not tagged.
-        tags=[dict(strategy=strategy, condition=condition, world=r["world"],
-                   target_genes=r["target_genes"],
-                   gene_probability=r["gene_probability"],
-                   distinct_gene_sets=r["distinct_gene_sets"],
-                   genes_seen=r["genes_seen"], count_states=r["count_states"])
-              for r in rows],
+        # ONLY what a config cannot express. The arm is in the sweep directory
+        # name, which is the script's own name, and everything else here is
+        # derivable from the gene sets the config already stores.
+        tags=[dict(target_genes=r["target_genes"]) for r in rows],
     )
     if condition == "homomers":
         # Stated outright: the gene-set path cannot express "homomers only",

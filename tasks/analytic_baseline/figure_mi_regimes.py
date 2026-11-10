@@ -32,6 +32,12 @@ CEIL = "codeword_entropy_log2B"
 KT_LO, KT_UP = "mutual_information_kt", "mutual_information_kt_upper"
 
 frame = runs(GOAL, latest_only=True)
+# nu is derived, not tagged: it is a function of the geometry and the dynamic
+# range, so every run yields it whether or not it was labelled at launch.
+frame = frame.assign(nu=[
+    round(T.nu_from_columns(r.latent_dim, r.family_spread, r.kernel_lambda,
+                            r.fixed_max_energy, r.conc_std), 4)
+    for r in frame.itertuples()])
 points = across_replicates(frame, keys=["nu", "n_genes"])
 nus = sorted(points.nu.unique())
 colours = plt.colormaps["viridis"](np.linspace(0, .9, len(nus)))

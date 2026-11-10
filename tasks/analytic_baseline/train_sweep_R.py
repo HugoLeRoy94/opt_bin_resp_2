@@ -129,22 +129,20 @@ def main():
         epochs=blk_ep * a.replicates,
         batch_size=[b["batch_size"] for b in batches],
         test_batch_size=[b["test_batch_size"] for b in batches],
-        # nu is the scalar the theory collapses onto, and it is not a config
-        # field: it comes from (D, sigma, lambda, Emax, sigma_c). Tag it so the
-        # figure can group by it without recomputing the closed form.
-        tags=[dict(nu=round(float(T.lambert_optimum(T.Params(
-                        D=D, sigma=SIGMA, lam=lam, Emax=a.emax,
-                        sigma_c=T.from_log10(CONC_MEAN, cs)[1]))["nu_min"]), 6),
-                   conc_std_log10=cs, lam=lam)
-              for cs in blk_cs * a.replicates],
+        # No tags. nu is a function of the geometry and the dynamic range, so
+        # the figure derives it with theory.nu_from_columns from fields the
+        # config already stores. A label could only disagree with them.
     )
 
     if a.dry_run:
         print(f"\n{len(runs)} runs\n")
         print(f"  {'R':>3} {'conc_std':>9} {'nu':>7} {'epochs':>7} {'batch':>8}")
         for run in runs[:len(Rs) * len(stds)]:
-            print(f"  {run.n_genes:>3} {run.tags['conc_std_log10']:>9.4f} "
-                  f"{run.tags['nu']:>7.3f} {run.epochs:>7} {run.batch_size:>8}")
+            nu = T.nu_from_columns(run.latent_dim, run.family_spread,
+                                   run.kernel_params[0], run.fixed_max_energy,
+                                   run.conc_std)
+            print(f"  {run.n_genes:>3} {run.conc_std:>9.4f} "
+                  f"{nu:>7.3f} {run.epochs:>7} {run.batch_size:>8}")
         print(f"  ... and {len(runs) - len(Rs) * len(stds)} more (replicates)")
         return
 

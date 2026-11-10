@@ -137,11 +137,9 @@ def build(k_sub, dry_run=False):
         conc_mean=[heterogeneous_conc_means(1, int(worlds["n_ligands"][r["world"]]),
                                             CONC_SPAN, int(np.random.randint(1 << 30)))[0]
                    for r in rows],
-        # genes_per_cell is an INTEGER here and complete coverage realises it
-        # exactly, so it is derivable from the config. k_sub is too. The tag is
-        # the world index, which is not.
-        tags=[dict(world=r["world"], distinct_gene_sets=r["distinct_gene_sets"],
-                   count_states=r["count_states"]) for r in rows],
+        # No tags. genes_per_cell is an integer here and complete coverage
+        # realises it exactly, so it is derived from cell_gene_sets, and k_sub
+        # is a config field.
     )
     if dry_run:
         print(f"\nk_sub = {k_sub}: {len(runs)} runs, {WORLDS} world(s)\n")

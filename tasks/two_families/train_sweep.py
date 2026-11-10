@@ -97,8 +97,8 @@ def main():
         epochs=[int(a.epochs_per_R * R + a.epochs_base) for R in tiled_R],
         batch_size=[b["batch_size"] for b in batches],
         test_batch_size=[b["test_batch_size"] for b in batches],
-        tags=[dict(pi=a.pi, nu=round(float(nu), 6), lam=lam,
-                   family_dist=a.family_dist) for _ in tiled_R],
+        # No tags. pi is family_weights[0], lambda is kernel_params[0], the
+        # family distance is a config field, and nu is derived from them.
     )
 
     if a.dry_run:

@@ -485,3 +485,23 @@ def mi_large_R(p: Params, U: float, ebase: float, R, n: int = 400_000,
     log_f = (D - 3) / 2 * L1 - betaln(0.5, (D - 1) / 2) / math.log(2)
     core = log_area + h_c + D * log_f + (D - 1) / 2 * L1 - cell_kappa(D)
     return H_atoms + p_in * (core + D * np.log2(np.asarray(R, dtype=float)))
+
+
+def nu_from_columns(latent_dim, family_spread, kernel_lambda, fixed_max_energy,
+                    conc_std_log10, conc_mean_log10=0.0):
+    """nu for one run, from the fields analysis.load already provides.
+
+    nu is the scalar the whole closed form collapses onto, and it is NOT a
+    config field: it is a function of the geometry and the dynamic range. It is
+    derived here rather than tagged at launch, so a run recorded before this
+    existed still yields it, and so no label can disagree with the config it
+    was written beside.
+
+    conc_std is stored in log10 and the analytics is in natural log; from_log10
+    does that conversion. Getting it wrong rescales nu by 2.3.
+    """
+    _, sigma_c = from_log10(conc_mean_log10, conc_std_log10)
+    p = Params(D=int(latent_dim), sigma=float(family_spread),
+               lam=float(kernel_lambda), Emax=float(fixed_max_energy),
+               sigma_c=sigma_c)
+    return float(lambert_optimum(p)["nu_min"])

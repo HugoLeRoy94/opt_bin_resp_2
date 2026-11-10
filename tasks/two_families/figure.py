@@ -35,12 +35,13 @@ G_DIM, G_CONC_STD = 2, 1.7372   # the single-family condition this task copies
 MI = "codeword_entropy_mm"
 
 frame = runs(GOAL, latest_only=True)
-pi = float(frame.pi.iloc[0])
+# family_weights is a config field, stored as "0.8,0.2"; pi is its first entry.
+pi = float(str(frame.family_weights.iloc[0]).split(",")[0])
 
 # G(n) from large_R, at the matching single-family condition.
 single = runs(G_GOAL, latest_only=True)
 single = single[(single.latent_dim == G_DIM)
-                & np.isclose(single.conc_std_log10, G_CONC_STD)]
+                & np.isclose(single.conc_std.astype(float), G_CONC_STD)]
 if single.empty:
     raise SystemExit(
         f"No {G_GOAL} run at D={G_DIM}, conc_std={G_CONC_STD}. G(n) is measured "

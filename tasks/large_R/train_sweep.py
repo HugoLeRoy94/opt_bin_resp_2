@@ -111,10 +111,8 @@ def main():
         epochs=blk_ep * rep,
         batch_size=[b["batch_size"] for b in batches],
         test_batch_size=[b["test_batch_size"] for b in batches],
-        tags=[dict(conc_std_log10=cs,
-                   shell_bound=LR.log2_shell_bound(R, D),
-                   ladder_bound=LR.log2_ladder_bound(R, D))
-              for R, D, cs in zip(tiled_R, blk_D * rep, blk_cs * rep)],
+        # No tags. conc_std is a config field and both counting bounds are a
+        # function of (R, D), which the figure recomputes.
     )
 
     if a.dry_run:
@@ -123,9 +121,10 @@ def main():
               f"{'batch':>8} {'shell':>7} {'ladder':>7}")
         for run in runs[:len(blk_R)]:
             print(f"  {run.latent_dim:>2} {run.n_genes:>4} "
-                  f"{run.tags['conc_std_log10']:>9.4f} {run.kernel_params[0]:>7.3f} "
+                  f"{run.conc_std:>9.4f} {run.kernel_params[0]:>7.3f} "
                   f"{run.epochs:>7} {run.batch_size:>8} "
-                  f"{run.tags['shell_bound']:>7.2f} {run.tags['ladder_bound']:>7.2f}")
+                  f"{LR.log2_shell_bound(run.n_genes, run.latent_dim):>7.2f} "
+                  f"{LR.log2_ladder_bound(run.n_genes, run.latent_dim):>7.2f}")
         print(f"  ... and {len(runs) - len(blk_R)} more (replicates)")
         return
 

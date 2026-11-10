@@ -30,7 +30,13 @@ MISSING = "grouped_counting_missing_mass"
 G, C = 5, 30              # which array the headline figure is for
 
 frame = runs(GOAL, latest_only=True)
-frame = frame.assign(arm=frame.strategy + "/" + frame.condition)
+# The sweep directory is named for the script that wrote it, so the arm is its
+# name with the timestamp stripped. Derived rather than tagged, so a run
+# recorded before tags existed still lands on the right curve.
+frame = frame.assign(
+    arm=frame["sweep"].str.replace(r"_\d{8}_\d{6}(_\d+)?$", "", regex=True)
+                      .str.replace("^fig2_", "", regex=True)
+                      .str.replace("_", "/", regex=False))
 
 # Group by the TARGET, plot the REALISED mean. Under the bernoulli strategy the
 # number of genes a cell gets is a Binomial draw, so the realised mean lands
