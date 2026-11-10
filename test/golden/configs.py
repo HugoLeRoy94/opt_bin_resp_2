@@ -25,9 +25,14 @@ RECEPTOR = dict(
     receptor_sampling_seed=7,
     per_epoch_measure=False,
     measurement_fns=("mutual_information_kt",),
-    final_measurement_fns=("mutual_information_kt", "full_array_entropy",
-                           "conditional_entropy_response"),
-    final_test_batch_size=128,
+)
+
+# What the separate measuring step records. Training no longer measures, so the
+# golden is reproduced by run() followed by evaluate().
+RECEPTOR_MEASURE = dict(
+    measurements=("mutual_information_kt", "full_array_entropy",
+                  "conditional_entropy_response"),
+    batch_size=128,
 )
 
 CELL = dict(
@@ -43,8 +48,11 @@ CELL = dict(
     cell_gene_sets=((0, 1), (1, 2), (2, 3), (0, 3), (0, 2)),
     per_epoch_measure=False,
     measurement_fns=("grouped_information",),
-    final_measurement_fns=("grouped_information", "grouped_counting"),
-    final_test_batch_size=128,
+)
+
+CELL_MEASURE = dict(
+    measurements=("grouped_information", "grouped_counting"),
+    batch_size=128,
 )
 
 # Fields the new Config drops because every call site pins them to one value.

@@ -69,10 +69,10 @@ class Config:
     per_epoch_measure: bool = True
     eval_chunk_size: Optional[int] = None
 
-    # --- What to record ---
+    # --- What to record DURING training, for the convergence curve ---
+    # The final measurement is not here: it is a separate step, because
+    # different estimators want different batch sizes. See tasks/_lib/measure.py.
     measurement_fns: Tuple[str, ...] = ("full_array_entropy",)
-    final_measurement_fns: Optional[Tuple[str, ...]] = None
-    final_test_batch_size: Optional[int] = None   # defaults to test_batch_size
 
     # --- Receptor array. Give receptor_indices, or n_receptors to sample them. ---
     receptor_indices: Optional[List[List[int]]] = None
@@ -112,8 +112,7 @@ class Config:
         wants_grouped = (
             self.entropy in ("grouped_mi", "grouped_kt_mi")
             or bool({"grouped_information", "grouped_counting"}
-                    & set((*(self.measurement_fns or ()),
-                           *(self.final_measurement_fns or ())))))
+                    & set(self.measurement_fns or ())))
         if wants_grouped and not self.is_cell_mode():
             raise ValueError("Grouped losses and measurements require cell mode.")
 

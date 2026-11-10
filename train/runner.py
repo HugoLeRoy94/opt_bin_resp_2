@@ -60,10 +60,14 @@ class Runner:
         self.grouping = None
         self.grouped_estimator = None
         self._response_generator = None
+        # Set by build(). A test script loads a checkpoint into these and calls
+        # evaluate(), so measuring never re-implements construction.
+        self.env = self.physics = self.loss_fn = self.receptor_indices = None
 
     # -- construction ------------------------------------------------------
 
-    def _build(self, verbose=True):
+    def build(self, verbose=True):
+        """Construct the world, the array and the objective. Sets the attributes."""
         cfg = self.config
         receptor_indices = torch.tensor(cfg.receptor_indices, dtype=torch.long,
                                         device=self.device)
@@ -120,6 +124,8 @@ class Runner:
 
         optimizer = optim.Adam(list(env.parameters()) + list(physics.parameters()),
                                lr=cfg.lr)
+        self.env, self.physics = env, physics
+        self.loss_fn, self.receptor_indices = loss_fn, receptor_indices
         return env, physics, loss_fn, optimizer, receptor_indices
 
     def _grouped_estimator_for(self, _):
@@ -187,6 +193,10 @@ class Runner:
                 stat.update(out) if isinstance(out, dict) else stat.update({name: out})
 
             if not (requested & streamed):
+                # Chunk-local measurements run on ONE forward pass, so they use
+                # `chunk` samples however large batch_size was. Recording it
+                # stops a 2^26 budget being read into a number that saw 512.
+                stat["response_evaluation_samples"] = activity.shape[0]
                 return stat
 
             if (want_counting or want_grouped_counting) and self._response_generator is None:
@@ -318,27 +328,42 @@ class Runner:
         physics.temperature = end_temp
         return {k: [s[k] for s in stats] for k in stats[0]} if stats else {}
 
-    def _test(self, env, physics, loss_fn, receptor_indices, n_samples):
-        """One final measurement over n_samples inputs. Deliberately not repeated.
+    def evaluate(self, measurements, batch_size, eval_chunk_size=None):
+        """Measure the built model over batch_size inputs. One measurement, not repeated.
 
         Repeating would show evaluation NOISE, but a frequency-based entropy
-        estimate is biased downward by an amount fixed by n_samples, so ten
+        estimate is biased downward by an amount fixed by batch_size, so ten
         repeats of a small batch carry exactly the bias of one. At equal cost,
-        put everything into final_test_batch_size. Values are still stored as
-        one-element lists so consumers keep one shape.
+        put everything into batch_size.
+
+        Values are stored as one-element lists so every consumer keeps one shape.
         """
-        stat = self._eval_stats(env, physics, loss_fn, receptor_indices, n_samples,
-                                measurement_fns=self.config.final_measurement_fns)
+        if self.env is None:
+            raise RuntimeError("Call build() first, or load a checkpoint into it.")
+        if eval_chunk_size is not None:
+            self.config.eval_chunk_size = eval_chunk_size
+        stat = self._eval_stats(self.env, self.physics, self.loss_fn,
+                                self.receptor_indices, batch_size,
+                                measurement_fns=tuple(measurements))
         return {k: [v] for k, v in stat.items()}
 
+
     def run(self):
-        env, physics, loss_fn, optimizer, receptor_indices = self._build()
-        history = self._train(env, physics, loss_fn, optimizer, receptor_indices)
+        """Train and checkpoint. Deliberately does NOT measure.
+
+        Measuring is a separate step because different estimators want
+        different batch sizes: sampled counting needs a budget that grows with
+        the number of cells, while KT costs O(B^2) and wants a modest one.
+        Folding one of them into training would silently privilege it, and
+        re-measuring would mean retraining. See tasks/_lib/measure.py.
+        """
+        # SweepLogger already wrote this, but a Runner built directly would
+        # otherwise leave a directory nothing can load.
+        self.logger.save_config(self.config)
+        env, physics, _loss, optimizer, receptor_indices = self.build()
+        history = self._train(env, physics, self.loss_fn, optimizer, receptor_indices)
         for i in range(len(next(iter(history.values()), []))):
             self.logger.save_stats(i, {k: v[i] for k, v in history.items()})
         self.logger.save_checkpoint(self.config.epochs, env, physics,
                                     receptor_indices, self.readout)
-        n = self.config.final_test_batch_size or self.config.test_batch_size
-        self.logger.save_results(
-            self._test(env, physics, loss_fn, receptor_indices, n))
         return env

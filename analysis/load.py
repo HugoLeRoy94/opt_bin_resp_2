@@ -35,7 +35,6 @@ _SEQUENCE_FIELDS = {
     "cell_size_pmf":         lambda v: len(v) if v else 0,
     "measurement_fns":       lambda v: ",".join(v) if v else "",
     "tags":                  lambda v: len(v) if v else 0,
-    "final_measurement_fns": lambda v: ",".join(v) if v else "",
     "family_weights":        lambda v: ",".join(f"{x:g}" for x in v) if v else "",
     "kernel_params":         lambda v: v[0] if v else np.nan,
 }
@@ -111,8 +110,10 @@ def runs(goal, data_root=None, sweeps=None, latest_only=False):
                              sweep=sweep_root.name, run_dir=str(run_dir)))
     if not rows:
         raise RuntimeError(
-            f"{len(roots)} sweep(s) under {root} but no FINISHED run in any of "
-            f"them. Runs without test_results.json were interrupted.")
+            f"{len(roots)} sweep(s) under {root} but nothing to load. A run is "
+            f"skipped when it has no best_model.pt (training was interrupted) "
+            f"or no test_*.json (it has not been measured yet: run the task's "
+            f"test script).")
     return pd.DataFrame(rows)
 
 
@@ -208,10 +209,12 @@ def load_model(run_dir, device="cpu"):
     """
     from train.runner import Runner
 
+    from train.io import load_config
+
     run_dir = Path(run_dir)
-    config, _stats, _results = load_run(run_dir)
+    config = load_config(run_dir)
     runner = Runner(config, logger=None, device=device)
-    env, physics, _loss, _opt, receptor_indices = runner._build(verbose=False)
+    env, physics, _loss, _opt, receptor_indices = runner.build(verbose=False)
 
     state = torch.load(run_dir / "best_model.pt", map_location=device,
                        weights_only=False)

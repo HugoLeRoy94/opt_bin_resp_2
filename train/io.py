@@ -8,14 +8,18 @@ Layout:
         <axis>_<value>/.../run_<timestamp>/
             config.json           this run, fully resolved
             stats.csv             training history
-            test_results.json     the final measurement
             best_model.pt         env + physics + receptor_indices
+            test_<label>.json     one per measurement pass
+
+Training writes config.json, stats.csv and best_model.pt. It does NOT measure:
+a test script does that afterwards and writes test_<label>.json, one file per
+estimator, because different estimators need very different batch sizes.
+
+So a run is FINISHED when it has a checkpoint, not when it has results. A
+finished run with no test_*.json has simply not been measured yet.
 
 The directory tree is the only index. Nothing caches it, so nothing can go
 stale against it.
-
-Ground truth is config.json and test_results.json. stats.csv is a diagnostic,
-and the checkpoint only matters for re-measuring a trained model.
 """
 import csv
 import json
@@ -32,7 +36,7 @@ from train.config import Config
 
 # Fields whose values are sequences: they cannot go in a directory name.
 _UNNAMEABLE = {"receptor_indices", "cell_gene_sets", "cell_receptors",
-               "measurement_fns", "final_measurement_fns", "kernel_params",
+               "measurement_fns", "kernel_params", "tags",
                "cell_size_pmf", "family_weights", "conc_mean", "conc_std"}
 
 
@@ -95,8 +99,11 @@ class RunLogger:
                 writer.writeheader()
             writer.writerow(stats)
 
-    def save_results(self, results):
-        (self.run_dir / "test_results.json").write_text(
+    def save_results(self, results, label):
+        """One measurement pass. `label` names the estimator, not the run."""
+        if not label or "/" in label:
+            raise ValueError(f"label must be a plain name, got {label!r}")
+        (self.run_dir / f"test_{label}.json").write_text(
             json.dumps(results, indent=4, cls=_Encoder))
 
     def save_checkpoint(self, epoch, env, physics, receptor_indices, readout=None):
@@ -149,30 +156,56 @@ class SweepLogger:
 # Reading
 # --------------------------------------------------------------------------
 
+def load_config(run_dir):
+    """Just the Config. Reads no results, so a measuring pass is never blocked
+    by what a previous pass wrote."""
+    data = json.loads((Path(run_dir) / "config.json").read_text())
+    return Config.from_dict({k: v for k, v in data.items() if k != "run_timestamp"})
+
+
 def load_run(run_dir):
-    """(Config, stats DataFrame, results dict) for one run directory."""
+    """(Config, stats DataFrame, results dict) for one run directory.
+
+    Results merge every test_<label>.json present. Two estimators measuring the
+    same model produce differently named keys, so they sit side by side and a
+    figure can plot one against the other. A key written by two passes raises
+    rather than letting the last file read win silently.
+    """
     run_dir = Path(run_dir)
-    config = Config.from_dict(
-        {k: v for k, v in json.loads((run_dir / "config.json").read_text()).items()
-         if k != "run_timestamp"})
+    config = load_config(run_dir)
     stats = (pd.read_csv(run_dir / "stats.csv")
              if (run_dir / "stats.csv").is_file() else pd.DataFrame())
-    results = (json.loads((run_dir / "test_results.json").read_text())
-               if (run_dir / "test_results.json").is_file() else {})
+    results, source = {}, {}
+    for path in sorted(run_dir.glob("test_*.json")):
+        label = path.stem[len("test_"):]
+        for key, value in json.loads(path.read_text()).items():
+            if key in results and results[key] != value:
+                raise ValueError(
+                    f"{run_dir}: {key!r} differs between test_{source[key]}.json "
+                    f"and test_{label}.json. Two passes cannot claim the same "
+                    f"measurement; give one of them its own key.")
+            results[key], source[key] = value, label
     return config, stats, results
 
 
-def iter_runs(sweep_root):
-    """Every FINISHED run under a sweep root, as (Config, stats, results, path).
+def is_finished(run_dir):
+    """A run is finished when it has a checkpoint, measured or not."""
+    return (Path(run_dir) / "best_model.pt").is_file()
 
-    A run without test_results.json is skipped: it was interrupted, and a
-    half-written run must never be averaged into a result.
+
+def iter_runs(sweep_root, measured_only=True):
+    """Every finished run under a sweep root, as (Config, stats, results, path).
+
+    A run without a checkpoint was interrupted and must never reach a result.
+    With measured_only, runs that no test script has touched are skipped too.
     """
     for path in sorted(Path(sweep_root).rglob("config.json")):
         run_dir = path.parent
-        if not (run_dir / "test_results.json").is_file():
+        if not is_finished(run_dir):
             continue
         config, stats, results = load_run(run_dir)
+        if measured_only and not results:
+            continue
         yield config, stats, results, run_dir
 
 

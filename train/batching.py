@@ -36,7 +36,7 @@ B_MIN = 512
 def suggest(n_receptors, entropy="kt_mi", n_ligands=1, k_sub=1, mem_budget_bytes=None,
             recompute_backward=False, n_physics_receptors=None,
             grouped_n_states=None, grouped_n_groups=None):
-    """Return {batch_size, test_batch_size, final_test_batch_size}.
+    """Return {batch_size, test_batch_size, measure_batch_size}.
 
     n_receptors is the width the ESTIMATOR sees: R in receptor mode, the number
     of cells C in cell mode. n_physics_receptors is the receptor POOL, which in
@@ -61,7 +61,7 @@ def suggest(n_receptors, entropy="kt_mi", n_ligands=1, k_sub=1, mem_budget_bytes
         batch = min(stats_cap, entropy_cap, max(1, mem_budget_bytes // physics))
         return dict(batch_size=batch,
                     test_batch_size=min(4 * batch, stats_cap),
-                    final_test_batch_size=stats_cap)
+                    measure_batch_size=stats_cap)
 
     # Statistical saturation: beyond this, more samples buy negligible variance.
     if grouped_kt:
@@ -96,7 +96,7 @@ def suggest(n_receptors, entropy="kt_mi", n_ligands=1, k_sub=1, mem_budget_bytes
     final = max(batch, min(alphabet, eval_cap))
     return dict(batch_size=batch,
                 test_batch_size=min(4 * batch, final),
-                final_test_batch_size=final)
+                measure_batch_size=final)
 
 
 def main():
@@ -119,7 +119,8 @@ def main():
     width = a.grouped_n_groups or a.n_receptors
     print(f"\n  batch_size            = {out['batch_size']}")
     print(f"  test_batch_size       = {out['test_batch_size']}")
-    print(f"  final_test_batch_size = {out['final_test_batch_size']}")
+    print(f"  measure_batch_size    = {out['measure_batch_size']}"
+          "   <- for a test script, not a config field")
     print(f"\n  KT pair-evaluations per step: {out['batch_size']**2 * width:.3g}")
     print("  See doc/batching.md for what each cap assumes.\n")
 

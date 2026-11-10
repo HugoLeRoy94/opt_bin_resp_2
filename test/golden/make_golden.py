@@ -16,15 +16,19 @@ sys.path.insert(0, str(OLD))
 sys.path.insert(0, str(HERE))
 
 import torch
-from configs import CELL, PINNED, RECEPTOR, SEED
+from configs import (CELL, CELL_MEASURE, PINNED, RECEPTOR,
+                     RECEPTOR_MEASURE, SEED)
 from src.config import SingleRunConfig
 from src.IO import ExperimentLogger
 from src.run import SimulationRunner
 
 
-def record(name, fields):
+def record(name, fields, measure):
+    """The old repo measures inside run(), so fold the measuring step back in."""
     torch.manual_seed(SEED)
-    cfg = SingleRunConfig(**{**fields, **PINNED})
+    cfg = SingleRunConfig(**{**fields, **PINNED,
+                             "final_measurement_fns": measure["measurements"],
+                             "final_test_batch_size": measure["batch_size"]})
     with tempfile.TemporaryDirectory() as tmp:
         SimulationRunner(cfg, ExperimentLogger(tmp)).run()
         result = json.loads((Path(tmp) / "test_results.json").read_text())
@@ -33,5 +37,5 @@ def record(name, fields):
 
 
 if __name__ == "__main__":
-    record("receptor", RECEPTOR)
-    record("cell", CELL)
+    record("receptor", RECEPTOR, RECEPTOR_MEASURE)
+    record("cell", CELL, CELL_MEASURE)

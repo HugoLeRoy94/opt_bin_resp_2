@@ -21,13 +21,21 @@ from configs import RECEPTOR                      # noqa: E402
 RESULT = {"full_array_entropy": [1.5], "mutual_information_kt": [0.5]}
 
 
-def _write_sweep(data_root, name, n_genes_values, offset=0.0):
+def _checkpoint(run_logger):
+    """A run is finished when it has a checkpoint, so fabricated runs need one."""
+    (run_logger.run_dir / "best_model.pt").write_bytes(b"")
+
+
+def _write_sweep(data_root, name, n_genes_values, offset=0.0, measure=True):
     """One sweep directory, written by the real writers, with fake results."""
     configs = sweep(dict(RECEPTOR), n_genes=n_genes_values)
     logger = SweepLogger(configs, name, data_root)
     for i, config in enumerate(configs):
         run_logger = logger.run_logger(config)
-        run_logger.save_results({k: [v[0] + offset + i] for k, v in RESULT.items()})
+        _checkpoint(run_logger)
+        if measure:
+            run_logger.save_results(
+                {k: [v[0] + offset + i] for k, v in RESULT.items()}, label="results")
     logger.set_state("complete")
     return logger.root
 
@@ -44,16 +52,60 @@ def test_two_sweeps_in_one_second_do_not_merge():
         assert frame["sweep"].nunique() == 2
 
 
-def test_unfinished_runs_are_skipped():
-    """A run without test_results.json was interrupted and must not be averaged."""
+def test_interrupted_runs_are_skipped():
+    """No checkpoint means training never finished; it must not reach a result."""
     with tempfile.TemporaryDirectory() as tmp:
         root = pathlib.Path(tmp) / "goal"
         configs = sweep(dict(RECEPTOR), n_genes=[3, 4, 5])
         logger = SweepLogger(configs, "demo", root)
         for config in configs[:2]:
-            logger.run_logger(config).save_results(RESULT)
-        logger.run_logger(configs[2])             # config.json only, no results
+            run_logger = logger.run_logger(config)
+            _checkpoint(run_logger)
+            run_logger.save_results(RESULT, label="results")
+        # Interrupted: config.json and even results, but training never
+        # checkpointed, so the numbers describe a model that does not exist.
+        logger.run_logger(configs[2]).save_results(RESULT, label="results")
         assert len(runs("goal", data_root=tmp)) == 2
+
+
+def test_trained_but_unmeasured_runs_are_skipped():
+    """A checkpoint with no test_*.json is simply not measured yet, not broken."""
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_sweep(pathlib.Path(tmp) / "goal", "demo", [3, 4], measure=False)
+        with pytest.raises(RuntimeError, match="no FINISHED run|not been measured"):
+            runs("goal", data_root=tmp)
+
+
+def test_two_passes_merge_into_one_row():
+    """Two estimators measuring one model sit side by side as columns."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp) / "goal"
+        configs = sweep(dict(RECEPTOR), n_genes=[3, 4])
+        logger = SweepLogger(configs, "demo", root)
+        for config in configs:
+            run_logger = logger.run_logger(config)
+            _checkpoint(run_logger)
+            run_logger.save_results({"mutual_information_kt": [1.0]}, label="kt")
+            run_logger.save_results(
+                {"mutual_information_grouped_counting_mm": [2.0]}, label="counting")
+        frame = runs("goal", data_root=tmp)
+        assert len(frame) == 2
+        assert frame["mutual_information_kt"].tolist() == [1.0, 1.0]
+        assert frame["mutual_information_grouped_counting_mm"].tolist() == [2.0, 2.0]
+
+
+def test_two_passes_cannot_claim_the_same_key():
+    """Letting the last file read win would silently discard a measurement."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp) / "goal"
+        config = sweep(dict(RECEPTOR), n_genes=[3])[0]
+        logger = SweepLogger([config], "demo", root)
+        run_logger = logger.run_logger(config)
+        _checkpoint(run_logger)
+        run_logger.save_results({"mutual_information_kt": [1.0]}, label="a")
+        run_logger.save_results({"mutual_information_kt": [2.0]}, label="b")
+        with pytest.raises(ValueError, match="cannot claim the same measurement"):
+            runs("goal", data_root=tmp)
 
 
 def test_optional_sequence_fields_load_when_unset():
@@ -123,7 +175,9 @@ def test_tags_become_columns():
                               {"arm": "b", "target_genes": 2.5}])
         logger = SweepLogger(configs, "demo", root)
         for config in configs:
-            logger.run_logger(config).save_results(RESULT)
+            run_logger = logger.run_logger(config)
+            _checkpoint(run_logger)
+            run_logger.save_results(RESULT, label="results")
         frame = runs("goal", data_root=tmp)
         assert frame["arm"].tolist() == ["a", "b"]
         assert frame["target_genes"].tolist() == [1.5, 2.5]

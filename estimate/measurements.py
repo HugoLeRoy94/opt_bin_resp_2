@@ -1,6 +1,7 @@
 """Evaluation-time measurements. Name -> dict of recorded numbers.
 
-These are what lands in test_results.json. They are separate from the training
+These are what a test script records into test_<label>.json. They are
+separate from the training
 objective: the loss optimizes one bound, these record several, so a run can be
 judged by an estimator it was not trained on.
 

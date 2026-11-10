@@ -81,7 +81,7 @@ def counting_budget_report(rows, batch_size, key="gene_sets", limit=0.2,
         raise ValueError(
             f"Projected counting bias {worst:.2f} bits exceeds {limit}. Above this "
             f"the bias differs BETWEEN design points, so it distorts the curve "
-            f"shape. Raise final_test_batch_size, or cut n_cells: H(K|X) is a sum "
+            f"shape. Raise the test script's batch size, or cut n_cells: H(K|X) is a sum "
             f"over cells, so 2^H(K) grows close to exponentially in C while an "
             f"affordable budget grows linearly.")
     return worst

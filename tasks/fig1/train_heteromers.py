@@ -20,8 +20,11 @@ array at a given (n_genes, R) is identical across worlds and the environment is
 the only thing varying.
 
 Objective: entropy="kt", the Kolchinsky-Tracey LOWER bound on the joint entropy
-H(s), which is the optimizer's target. Both bounds are recorded, so each point
-carries its certified bracket as well as the across-world spread.
+H(s), which is the optimizer's target.
+
+This trains and checkpoints only. Measure it afterwards with
+
+    python -m tasks.fig1.test_kt
 """
 import argparse
 import time
@@ -113,6 +116,8 @@ def main():
             compile_kt=True,              # fuse the KT tile kernel
             receptor_sampling_strategy="cascading",
             receptor_sampling_seed=0,
+            # Recorded during training only if per_epoch_measure is on. The
+            # reported numbers come from test_kt.py.
             measurement_fns=("entropy_kt", "entropy_kt_upper"),
         ),
         n_receptors=tiled,
@@ -128,21 +133,20 @@ def main():
         epochs=[int(170 * R + 500) for R in tiled],
         batch_size=[b["batch_size"] for b in batches],
         test_batch_size=[b["test_batch_size"] for b in batches],
-        # per_epoch_measure is off, so the single final measurement is the only
-        # one; 4x the training batch is what the old auto-sizing used here.
-        final_test_batch_size=[4 * b["batch_size"] for b in batches],
+        # No tags: fig1's design point is the ratio R / n_genes, and both are
+        # real config fields, so the figure derives it rather than trusting a
+        # label that could disagree with the run.
     )
 
     if args.dry_run:
         print(f"fig1 ng={args.n_genes}: {len(runs)} runs, "
               f"{N_WORLDS} worlds x {n_points} receptor points\n")
         print(f"  {'world':>5s} {'R':>5s} {'ratio':>5s} {'L':>5s} {'D':>3s} "
-              f"{'epochs':>7s} {'batch':>7s} {'final':>8s}")
+              f"{'epochs':>7s} {'batch':>7s}")
         for i, run in enumerate(runs):
             print(f"  {i // n_points:5d} {run.n_receptors:5d} "
                   f"{run.n_receptors // args.n_genes:5d} {run.n_ligands:5d} "
-                  f"{run.latent_dim:3d} {run.epochs:7d} {run.batch_size:7d} "
-                  f"{run.final_test_batch_size:8d}")
+                  f"{run.latent_dim:3d} {run.epochs:7d} {run.batch_size:7d}")
         return
 
     start = time.time()
