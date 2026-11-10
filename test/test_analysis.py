@@ -15,7 +15,6 @@ from train.config import Config, sweep
 from train.io import SweepLogger
 
 HERE = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE / "golden"))
 from configs import RECEPTOR                      # noqa: E402
 
 RESULT = {"full_array_entropy": [1.5], "mutual_information_kt": [0.5]}

@@ -15,7 +15,6 @@ import pytest
 import torch
 
 HERE = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE / "golden"))
 
 from configs import (CELL, CELL_MEASURE, RECEPTOR,     # noqa: E402
                      RECEPTOR_MEASURE, SEED)

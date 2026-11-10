@@ -69,8 +69,6 @@ def test_exact_mi_is_entropy_minus_noise():
     ("kt", True, GroupedKTMutualInformationLoss)])
 def test_every_combination_builds(mi, grouped, expected):
     """All four cells exist; neither axis is a special case of the other."""
-    import sys, pathlib
-    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "golden"))
     from configs import CELL, RECEPTOR
 
     from estimate.grouping import CellGrouping
@@ -85,8 +83,6 @@ def test_every_combination_builds(mi, grouped, expected):
 
 def test_grouping_without_cells_is_refused():
     """Receptors have nothing to group, so asking for it is a design error."""
-    import sys, pathlib
-    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "golden"))
     from configs import RECEPTOR
 
     from train.config import Config

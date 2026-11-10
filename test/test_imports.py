@@ -35,3 +35,24 @@ def test_layers_do_not_import_upward():
                 if name in forbidden:
                     bad.append(f"{path.relative_to(ROOT)} imports {name}")
     assert not bad, "import-direction violations:\n  " + "\n  ".join(bad)
+
+
+def test_nothing_manipulates_sys_path():
+    """The old repo hacked sys.path in 68 of 72 task files, in four mutually
+    incompatible flavours, five with an absolute path baked in.
+
+    An editable install makes every one of them unnecessary. This fails if one
+    creeps back, which it will the first time someone runs a file from a
+    directory where the imports do not resolve and reaches for the quick fix
+    instead of `pip install -e .`.
+    """
+    offenders = []
+    for package in ("model", "estimate", "train", "analysis", "tasks"):
+        for path in sorted((ROOT / package).rglob("*.py")):
+            text = path.read_text()
+            for marker in ("sys.path.append", "sys.path.insert", "sys.path ="):
+                if marker in text:
+                    offenders.append(f"{path.relative_to(ROOT)}: {marker}")
+    assert not offenders, (
+        "sys.path manipulation found; run `pip install -e . --no-deps` instead:\n  "
+        + "\n  ".join(offenders))

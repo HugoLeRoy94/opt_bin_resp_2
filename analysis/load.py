@@ -85,8 +85,8 @@ def runs(goal, data_root=None, sweeps=None, latest_only=False):
     root = Path(data_root or DATA_ROOT) / goal
     if not root.is_dir():
         raise FileNotFoundError(
-            f"No goal directory {root}. Run the sweep first, or pull it with "
-            f"ops/manage_data.py sync {goal}.")
+            f"No goal directory {root}. Train it first, or point OCTOPUS_DATA_ROOT "
+            f"at the directory holding it.")
 
     roots = find_sweeps(root)
     if sweeps is not None:

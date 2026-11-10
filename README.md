@@ -19,9 +19,28 @@ The import direction is one-way and `test/test_imports.py` enforces it:
 imports `analysis`, and nothing in `model`, `estimate` or `train` imports
 matplotlib. A training container never needs it.
 
+## Install, once
+
+```bash
+cd opt_bin_resp_2
+pip install -e . --no-deps
+```
+
+This is what makes `import analysis` work from any directory: a script, a
+notebook, an IDE interactive cell. Without it the imports only resolve when
+the working directory happens to be the repository root.
+
+It has to be an install rather than a path line in each file. An interactive
+cell sets the working directory to the workspace root rather than the file's
+folder, and `__file__` is undefined there, so neither can locate the
+repository. `--no-deps` stops pip touching your torch or numpy.
+
+Editable, so edits take effect with no reinstall. Re-run it only if you move
+the repository or add a top-level package.
+
 ## Running
 
-From the repository root. No installation, no `sys.path` lines.
+From anywhere, once installed.
 
 ```bash
 python -m tasks.<task>.train_<arm>  --dry_run     # print the design, run nothing
