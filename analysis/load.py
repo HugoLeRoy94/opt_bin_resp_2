@@ -177,6 +177,14 @@ def across_replicates(points, keys, spread="std", metrics=None):
     if metrics is None:
         metrics = [c for c in points.columns
                    if c not in keys and pd.api.types.is_numeric_dtype(points[c])]
+    # "n" and "spread" are added below. Overwriting a column of the same name
+    # would silently replace data with bookkeeping.
+    clash = {"n", "spread"} & (set(metrics) | set(keys))
+    if clash:
+        raise ValueError(
+            f"{sorted(clash)} would be overwritten: across_replicates adds a "
+            f"column 'n' (how many runs) and 'spread' (which convention). "
+            f"Rename yours, e.g. norm_spread.")
 
     grouped = points.groupby(keys, sort=True)
     mean = grouped[metrics].mean()

@@ -216,3 +216,12 @@ def test_tags_never_reach_the_model():
     assert a.receptor_indices == b.receptor_indices
     physics = {k: v for k, v in a.to_dict().items() if k != "tags"}
     assert physics == {k: v for k, v in b.to_dict().items() if k != "tags"}
+
+
+def test_across_replicates_refuses_to_clobber_a_column():
+    """It adds 'n' and 'spread'. Overwriting data of that name must not be silent."""
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_sweep(pathlib.Path(tmp) / "goal", "demo", [3, 4])
+        frame = runs("goal", data_root=tmp).assign(spread=1.0)
+        with pytest.raises(ValueError, match="would be overwritten"):
+            across_replicates(frame, keys=["n_genes"])
