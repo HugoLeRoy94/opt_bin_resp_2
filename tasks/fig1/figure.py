@@ -4,9 +4,9 @@
 Two uncertainties are shown and they mean different things.
 
   The BRACKET, solid against dashed, is the Kolchinsky-Tracey lower and upper
-  bound on the joint entropy H(s) of one trained array. It is a guarantee about
-  the estimator, not noise, and more runs do not narrow it. The solid lower
-  bound is what the optimizer maximised, so it is the number to read.
+  bound on I(Y;X) for one trained array. It is a guarantee about the estimator,
+  not noise, and more runs do not narrow it. The solid lower bound is what the
+  optimizer maximised, so it is the number to read.
 
   The BAND around the solid line is one standard deviation across independently
   drawn chemical worlds. That is genuine variability, and it is what says
@@ -26,8 +26,8 @@ from analysis.load import across_replicates, runs
 from analysis.plot import reference
 
 GOAL = "fig1"
-KT_LO = "full_array_entropy_kt"           # optimizer target, the reported MI
-KT_UP = "full_array_entropy_kt_upper"     # top of the certified bracket
+KT_LO = "mutual_information_kt"           # optimizer target, the reported MI
+KT_UP = "mutual_information_kt_upper"     # top of the certified bracket
 RATIOS = (1, 2, 3, 4, 5)
 
 frame = runs(GOAL, latest_only=True)
@@ -60,9 +60,9 @@ for ratio in sorted(points.ratio.unique()):
 
 genes = np.sort(points.n_genes.unique())
 ax.plot(genes, genes, ":", color="k", linewidth=1, alpha=.6,
-        label="lossless homomers (y = x)")
+        label="one bit per gene (y = x)")
 
-ax.set(xlabel="genes available, G", ylabel="joint entropy H(s) [bits]",
+ax.set(xlabel="genes available, G", ylabel="I(Y;X) [bits]",
        title="solid: KT lower bound   dashed: KT upper   band: 1 sd across worlds")
 ax.spines[["top", "right"]].set_visible(False)
 ax.legend(fontsize=8)

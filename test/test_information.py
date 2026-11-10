@@ -13,7 +13,7 @@ import torch
 
 from estimate.entropy import (compute_kt_entropy, compute_kt_upper_entropy,
                               compute_shannon_joint_entropy)
-from estimate.losses import DiscreteExactLoss
+from estimate.losses import ResponseEntropy
 
 
 def soft(a):
@@ -75,7 +75,7 @@ def test_identical_coin_flips_give_R_bits():
 
 def test_gradients_are_correct():
     """Finite-difference gradcheck in float64 through the soft assignment."""
-    loss = DiscreteExactLoss(entropy_type="kt", collision_chunk_size=8)
+    loss = ResponseEntropy(entropy_type="kt", collision_chunk_size=8)
     act = torch.rand(20, 6, dtype=torch.float64, requires_grad=True)
     assert torch.autograd.gradcheck(
         lambda a: compute_kt_entropy(loss.compute_soft_assignment(a), chunk_size=8),

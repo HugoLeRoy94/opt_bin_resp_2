@@ -16,7 +16,8 @@ import torch.optim as optim
 from estimate.entropy import (KT_EPS, compute_kt_entropy, compute_kt_upper_entropy,
                               compute_response_conditional_entropy)
 from estimate.grouping import CellGrouping, GroupedResponseCounter
-from estimate.losses import (DiscreteExactLoss, GroupedCellMutualInformationLoss,
+from estimate.losses import (ExactMutualInformationLoss,
+                             GroupedCellMutualInformationLoss,
                              GroupedKTMutualInformationLoss, KTMutualInformationLoss)
 from estimate.measurements import REGISTRY, codeword_entropy, response_counting_metrics
 from model.cells import CellArray, CellReadout, cell_activity
@@ -35,18 +36,23 @@ _STREAMED = {"entropy_kt", "entropy_kt_upper", "conditional_entropy_response",
 
 
 def build_loss(config, grouping=None):
-    """The training objective named by config.entropy."""
+    """The objective picked by (config.mi, config.grouped).
+
+    Two independent axes, so four combinations and no special names:
+
+                     grouped=False                grouped=True
+        shannon      ExactMutualInformationLoss   GroupedCellMutualInformationLoss
+        kt           KTMutualInformationLoss      GroupedKTMutualInformationLoss
+    """
     tile = min(int(config.batch_size), KT_TRAIN_TILE)
     common = dict(collision_chunk_size=tile,
                   recompute_backward=config.recompute_backward,
                   compile_kt=config.compile_kt)
-    if config.entropy == "grouped_mi":
-        return GroupedCellMutualInformationLoss(grouping, config.cell_grouped_max_states)
-    if config.entropy == "grouped_kt_mi":
-        return GroupedKTMutualInformationLoss(grouping, **common)
-    if config.entropy == "kt_mi":
-        return KTMutualInformationLoss(**common)
-    return DiscreteExactLoss(entropy_type=config.entropy, **common)
+    if config.mi == "shannon":
+        return (GroupedCellMutualInformationLoss(grouping, config.cell_grouped_max_states)
+                if config.grouped else ExactMutualInformationLoss(**common))
+    return (GroupedKTMutualInformationLoss(grouping, **common)
+            if config.grouped else KTMutualInformationLoss(**common))
 
 
 class Runner:
@@ -284,8 +290,7 @@ class Runner:
 
     def _train(self, env, physics, loss_fn, optimizer, receptor_indices):
         cfg = self.config
-        is_mi = isinstance(loss_fn, (KTMutualInformationLoss,
-                                     GroupedCellMutualInformationLoss))
+        is_mi = True        # every objective is an MI objective now
         start_temp = (compute_initial_temperature(env, receptor_indices)
                       if cfg.initial_temperature == "auto"
                       else float(cfg.initial_temperature))

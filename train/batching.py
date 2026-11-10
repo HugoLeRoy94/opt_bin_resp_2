@@ -33,7 +33,7 @@ EVAL_TILE = 2048
 B_MIN = 512
 
 
-def suggest(n_receptors, entropy="kt_mi", n_ligands=1, k_sub=1, mem_budget_bytes=None,
+def suggest(n_receptors, mi="kt", grouped=False, n_ligands=1, k_sub=1, mem_budget_bytes=None,
             recompute_backward=False, n_physics_receptors=None,
             grouped_n_states=None, grouped_n_groups=None):
     """Return {batch_size, test_batch_size, measure_batch_size}.
@@ -45,11 +45,11 @@ def suggest(n_receptors, entropy="kt_mi", n_ligands=1, k_sub=1, mem_budget_bytes
     if mem_budget_bytes is None:
         raise ValueError("Pass mem_budget_bytes: there is no sensible default, "
                          "and guessing one silently sizes for a GPU you may not have.")
-    grouped_kt = entropy == "grouped_kt_mi"
+    grouped_kt = grouped and mi == "kt"
     if grouped_kt and not (grouped_n_groups and grouped_n_states):
         raise ValueError("grouped_kt_mi needs grouped_n_groups and grouped_n_states.")
     kt_width = grouped_n_groups if grouped_kt else n_receptors
-    kind = "kt" if entropy in ("kt", "kt_mi", "grouped_kt_mi") else entropy
+    kind = "grouped_mi" if (grouped and mi == "shannon") else mi
 
     if kind == "grouped_mi":
         if not grouped_n_states:
@@ -103,7 +103,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--n_receptors", type=int, required=True,
                    help="estimator width: R, or the cell count C in cell mode")
-    p.add_argument("--entropy", default="kt_mi")
+    p.add_argument("--mi", default="kt", choices=("kt", "shannon"))
+    p.add_argument("--grouped", action="store_true")
     p.add_argument("--n_ligands", type=int, default=1)
     p.add_argument("--k_sub", type=int, default=5)
     p.add_argument("--gpu_gb", type=float, required=True, help="free GPU memory")
@@ -113,7 +114,7 @@ def main():
     p.add_argument("--grouped_n_states", type=int, default=None)
     p.add_argument("--grouped_n_groups", type=int, default=None)
     a = p.parse_args()
-    out = suggest(a.n_receptors, a.entropy, a.n_ligands, a.k_sub,
+    out = suggest(a.n_receptors, a.mi, a.grouped, a.n_ligands, a.k_sub,
                   int(a.gpu_gb * (1 << 30)), a.recompute_backward,
                   a.n_physics_receptors, a.grouped_n_states, a.grouped_n_groups)
     width = a.grouped_n_groups or a.n_receptors

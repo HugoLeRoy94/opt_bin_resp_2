@@ -69,7 +69,7 @@ MU_LIGANDS_RANGE = (2.5, 4.0)
 CONC_SPAN = 1.0
 CONC_STD = 1.0
 
-ENTROPY = "kt_mi"
+MI = "kt"
 MEASUREMENTS = ("grouped_counting",)   # per-epoch only; see test_*.py
 
 EPOCHS = 5000
@@ -118,7 +118,7 @@ def build(k_sub, dry_run=False):
         n_presence_blocks=1, mu_sources=1.0, block_shared_conc_mean=False,
         n_genes=N_GENES, k_sub=k_sub, temperature=TEMPERATURE,
         kernel_params=(1.0,), initial_temperature=INIT_TEMPERATURE,
-        use_interface_model=True, entropy=ENTROPY,
+        use_interface_model=True, mi=MI, grouped=False,
         measurement_fns=MEASUREMENTS, epochs=EPOCHS, lr=LR,
         batch_size=BATCH_SIZE, test_batch_size=TEST_BATCH_SIZE,
         eval_chunk_size=EVAL_CHUNK_SIZE, per_epoch_measure=False,

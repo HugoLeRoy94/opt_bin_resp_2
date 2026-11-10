@@ -58,7 +58,7 @@ CONC_STD = 1.0
 # kt_mi trains; grouped_counting is the only measurement and already carries
 # MI, H(Y), H(Y|X) and alphabet coverage as ONE estimator family, so
 # MI = H(Y) - H(Y|X) holds exactly.
-ENTROPY = "kt_mi"
+MI = "kt"
 # Recorded during training only when per_epoch_measure is on, which it is not.
 # The reported numbers come from test_counting.py and test_kt.py.
 MEASUREMENTS = ("grouped_counting",)
@@ -142,7 +142,7 @@ def build(strategy, condition, data_root, dry_run=False):
         n_presence_blocks=1, mu_sources=1.0, block_shared_conc_mean=False,
         k_sub=K_SUB, temperature=TEMPERATURE, kernel_params=(1.0,),
         initial_temperature=INIT_TEMPERATURE, use_interface_model=True,
-        entropy=ENTROPY, measurement_fns=MEASUREMENTS,
+        mi=MI, grouped=False, measurement_fns=MEASUREMENTS,
         epochs=EPOCHS, lr=LR, batch_size=BATCH_SIZE,
         test_batch_size=TEST_BATCH_SIZE,
         eval_chunk_size=EVAL_CHUNK_SIZE, per_epoch_measure=False,

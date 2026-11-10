@@ -1,22 +1,34 @@
-"""Training objectives. All of them maximize a bound on I(Y;X).
+"""Training objectives. Every one of them maximizes a bound on I(Y;X).
 
-I(Y;X) = H(Y) - H(Y|X), where Y is the array response and X the stimulus.
+    I(Y;X) = H(Y) - H(Y|X)
 
-  DiscreteExactLoss             maximizes H(Y) alone, with entropy_type picking
-                                the estimator ('shannon' exact, 'kt' lower bound).
-                                Correct only when the readout is noiseless, since
-                                it never subtracts H(Y|X).
-  KTMutualInformationLoss       maximizes the KT lower bound on I(Y;X) directly,
-                                without forming the difference of two large
-                                entropies. This is the objective to prefer.
-  GroupedCellMutualInformationLoss
-                                exact I(Y;X) over grouped cell counts, by
-                                enumerating joint count states. The reference the
-                                KT version is validated against; cost grows with
-                                prod_j (n_j + 1), hence cell_grouped_max_states.
-  GroupedKTMutualInformationLoss
-                                the KT bound on grouped counts. Same convention,
-                                no joint-state enumeration, so it scales.
+Nothing here maximizes H(Y) alone. That has a degenerate optimum: an array
+whose every output is a fair coin regardless of input scores H(Y) = R bits,
+the maximum possible, while carrying zero information. h2(0.5) = 1 bit per
+output gets counted as signal. Response noise must be subtracted, not rewarded.
+
+Two independent choices:
+
+    ESTIMATOR    shannon  exact, enumerates the response alphabet. O(B * 2^R)
+                          for R binary outputs, so small arrays only. The
+                          ground truth the bound is checked against.
+                 kt       Kolchinsky-Tracey lower bound, O(B^2 * R). Scales.
+
+    GROUPING     off      every output is its own symbol
+                 on       cells with IDENTICAL abundance rows are one group and
+                          only the COUNT per group is kept. Nothing is lost:
+                          the count vector is a sufficient statistic, and the
+                          label term cancels between H(Y) and H(Y|X). With all
+                          cells distinct it is exactly a no-op.
+
+The two are orthogonal, which is why they are separate config fields rather
+than one name per combination:
+
+                 grouped=False                grouped=True
+    shannon      ExactMutualInformationLoss   GroupedCellMutualInformationLoss
+    kt           KTMutualInformationLoss      GroupedKTMutualInformationLoss
+
+Grouping requires cell mode: receptors have nothing to group.
 """
 import math
 
@@ -24,24 +36,25 @@ import torch
 import torch.nn as nn
 
 from estimate.entropy import (compute_kt_entropy, compute_kt_upper_entropy,
+                              compute_response_conditional_entropy,
                               compute_shannon_joint_entropy)
 from estimate.grouping import CellGrouping
 
 
-class DiscreteExactLoss(nn.Module):
-    """Maximize the joint entropy H(Y) of the binary response array.
+class ResponseEntropy(nn.Module):
+    """Soft assignments and H(Y). A measurement base, NOT a trainable objective.
 
-    entropy_type selects the estimator used for training and for compute_entropy:
+    It has no forward on purpose: maximizing H(Y) optimises noise. Subclasses
+    add a forward that maximizes information.
+
+    entropy_type selects what compute_entropy returns by default:
       'shannon'  exact enumeration, O(B * 2^R), small R only
-      'kt'       Kolchinsky-Tracey lower bound, O(B^2 * R), scalable
-
-    Train with one and measure with another by passing entropy_type to
-    compute_entropy.
+      'kt'       Kolchinsky-Tracey lower bound, O(B^2 * R)
     """
 
     _ENTROPY_FNS = ('shannon', 'kt')
 
-    def __init__(self, entropy_type: str, collision_chunk_size: int = 2048,
+    def __init__(self, entropy_type: str = 'kt', collision_chunk_size: int = 2048,
                  recompute_backward: bool = False, compile_kt: bool = False):
         super().__init__()
         self.entropy_type = entropy_type
@@ -54,7 +67,7 @@ class DiscreteExactLoss(nn.Module):
 
     def compute_entropy(self, activity: torch.Tensor,
                         entropy_type: str = None) -> torch.Tensor:
-        """Joint entropy in bits, a positive scalar."""
+        """H(Y) in bits, a positive scalar. A measurement, never a loss."""
         etype = entropy_type if entropy_type is not None else self.entropy_type
         soft_assign = self.compute_soft_assignment(activity)
         if etype == 'shannon':
@@ -63,11 +76,26 @@ class DiscreteExactLoss(nn.Module):
                                   recompute=self.recompute_backward,
                                   use_compile=self.compile_kt)
 
+
+class ExactMutualInformationLoss(ResponseEntropy):
+    """Maximize I(Y;X) exactly, by enumerating the response alphabet.
+
+    H(Y) is exact over all 2^R states and H(Y|X) is analytic, so this is the
+    true mutual information, not a bound. Costs O(B * 2^R), so it exists as the
+    reference the KT bound is validated against rather than as a working
+    objective for a large array.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(entropy_type='shannon', **kwargs)
+
     def forward(self, activity: torch.Tensor) -> torch.Tensor:
-        return -self.compute_entropy(activity)
+        soft = self.compute_soft_assignment(activity)
+        return -(compute_shannon_joint_entropy(soft)
+                 - compute_response_conditional_entropy(activity))
 
 
-class KTMutualInformationLoss(DiscreteExactLoss):
+class KTMutualInformationLoss(ResponseEntropy):
     """Maximize the KT lower bound on I(Y;X).
 
     compute_entropy still returns H(Y); forward returns -I_lower and
@@ -88,7 +116,7 @@ class KTMutualInformationLoss(DiscreteExactLoss):
         )
 
 
-class GroupedCellMutualInformationLoss(DiscreteExactLoss):
+class GroupedCellMutualInformationLoss(ResponseEntropy):
     """Cell-only count enumeration; ``compute_entropy`` still returns full H(Y).
 
     Inputs remain (batch, cells), with one probability per labeled cell. Identical
@@ -98,7 +126,6 @@ class GroupedCellMutualInformationLoss(DiscreteExactLoss):
 
     def __init__(self, W: torch.Tensor, max_states: int = 65536):
         super().__init__(entropy_type="shannon")
-        self.entropy_type = "grouped_mi"
         if max_states < 1:
             raise ValueError("cell_grouped_max_states must be positive.")
         self.grouping = W if isinstance(W, CellGrouping) else CellGrouping(W)

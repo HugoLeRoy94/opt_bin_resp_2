@@ -19,8 +19,10 @@ world would not be a result. The receptor array, by contrast, IS seeded, so the
 array at a given (n_genes, R) is identical across worlds and the environment is
 the only thing varying.
 
-Objective: entropy="kt", the Kolchinsky-Tracey LOWER bound on the joint entropy
-H(s), which is the optimizer's target.
+Objective: mi="kt", the Kolchinsky-Tracey LOWER bound on I(Y;X). The original
+maximized H(Y) instead, which has a degenerate optimum at an array of fair
+coins. At zero observation noise the two nearly coincide, but only one of them
+is the quantity the figure is about.
 
 This trains and checkpoints only. Measure it afterwards with
 
@@ -110,7 +112,7 @@ def main():
             mu_sources=1,
             block_shared_conc_mean=False,
             use_interface_model=True,
-            entropy="kt",
+            mi="kt",
             lr=0.05,
             per_epoch_measure=False,      # only the free training loss is logged
             compile_kt=True,              # fuse the KT tile kernel

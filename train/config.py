@@ -50,7 +50,10 @@ class Config:
     kernel_params: Tuple[float, ...]           # (lambda,) Gaussian affinity width
 
     # --- Objective and training ---
-    entropy: str                               # "kt_mi", "grouped_mi", "grouped_kt_mi", "kt", "shannon"
+    # Every objective maximizes a bound on I(Y;X) = H(Y) - H(Y|X). There is no
+    # entropy-only option: maximizing H(Y) alone has a degenerate optimum at an
+    # array of fair coins, which scores the maximum and carries no information.
+    mi: str                                    # "kt" (scales) or "shannon" (exact, small R)
     batch_size: int                            # explicit; see doc/batching.md
     epochs: int
     lr: float
@@ -61,6 +64,10 @@ class Config:
     shared_unit_energies: bool = False
     fixed_max_energy: Optional[float] = None
     use_interface_model: bool = False
+    # Cells with IDENTICAL abundance rows become one group and only the count
+    # per group is kept. Lossless, and exactly a no-op when all cells differ.
+    # Requires cell mode: receptors have nothing to group.
+    grouped: bool = False
 
     # --- Schedules and performance (no effect on the model) ---
     initial_temperature: Union[float, str] = "auto"   # "auto" calibrates from a batch
@@ -109,12 +116,13 @@ class Config:
                 or self.cell_receptors is not None)
 
     def __post_init__(self):
-        wants_grouped = (
-            self.entropy in ("grouped_mi", "grouped_kt_mi")
-            or bool({"grouped_information", "grouped_counting"}
-                    & set(self.measurement_fns or ())))
+        if self.mi not in ("kt", "shannon"):
+            raise ValueError(f"mi must be 'kt' or 'shannon', not {self.mi!r}.")
+        wants_grouped = self.grouped or bool(
+            {"grouped_information", "grouped_counting"} & set(self.measurement_fns or ()))
         if wants_grouped and not self.is_cell_mode():
-            raise ValueError("Grouped losses and measurements require cell mode.")
+            raise ValueError("Grouping requires cell mode: receptors have "
+                             "nothing to group.")
 
         if self.is_cell_mode():
             cells = build_cell_array(

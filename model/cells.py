@@ -494,7 +494,7 @@ def cell_activity(physics, readout: CellReadout,
     recomputed in backward rather than retained: without it the retained graph is
     still O(B·L·R_pool) during training and chunking only helps under no_grad.
     Exact — no effect on values or gradients (same convention as
-    DiscreteExactLoss.recompute_backward).
+    Config.recompute_backward).
     """
     R_pool = receptor_indices.shape[0]
     if chunk_size is None or chunk_size >= R_pool:

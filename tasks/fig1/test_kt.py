@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """fig1 measurement: the Kolchinsky-Tracey bracket on every trained run.
 
-Records entropy_kt and entropy_kt_upper, the certified LOWER and UPPER bounds
-on the joint entropy H(s). The lower bound is what training maximised and is
-the number the figure reports; the upper bound says how tight that claim is.
+Records the certified LOWER and UPPER bounds on I(Y;X), the information the
+array carries about the stimulus. The lower bound is what training maximised
+and is the number the figure reports; the upper bound says how tight that
+claim is.
+
+It reports MI rather than H(Y) deliberately. H(Y) counts response noise as
+signal, and at zero observation noise the two nearly coincide, but only one of
+them is the quantity the figure is about.
 
 KT costs O(B^2 * R), quadratic in the batch, so the budget here is modest and
 has nothing to do with the training batch. Run after training:
@@ -15,7 +20,7 @@ import argparse
 
 from tasks._lib.measure import measure_goal
 
-MEASUREMENTS = ("entropy_kt", "entropy_kt_upper")
+MEASUREMENTS = ("mutual_information_kt", "mutual_information_kt_upper")
 LABEL = "kt"
 BATCH_SIZE = 8192          # KT is O(B^2 R); see doc/batching.md
 EVAL_CHUNK = 2048
