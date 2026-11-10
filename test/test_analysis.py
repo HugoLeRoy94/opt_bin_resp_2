@@ -94,18 +94,43 @@ def test_two_passes_merge_into_one_row():
         assert frame["mutual_information_grouped_counting_mm"].tolist() == [2.0, 2.0]
 
 
-def test_two_passes_cannot_claim_the_same_key():
-    """Letting the last file read win would silently discard a measurement."""
+def test_two_passes_disagreeing_keep_both_under_their_labels():
+    """H(Y|X) measured at two budgets gives two estimates. Neither may win.
+
+    Letting the last file read win would silently discard one. Keeping both
+    labelled means a figure asking for the plain name fails on a missing
+    column rather than reading whichever file happened to sort last.
+    """
     with tempfile.TemporaryDirectory() as tmp:
         root = pathlib.Path(tmp) / "goal"
         config = sweep(dict(RECEPTOR), n_genes=[3])[0]
         logger = SweepLogger([config], "demo", root)
         run_logger = logger.run_logger(config)
         _checkpoint(run_logger)
-        run_logger.save_results({"mutual_information_kt": [1.0]}, label="a")
-        run_logger.save_results({"mutual_information_kt": [2.0]}, label="b")
-        with pytest.raises(ValueError, match="cannot claim the same measurement"):
-            runs("goal", data_root=tmp)
+        run_logger.save_results({"conditional_entropy_response": [1.0],
+                                 "mutual_information_kt": [9.0]}, label="a")
+        run_logger.save_results({"conditional_entropy_response": [2.0],
+                                 "codeword_entropy_mm": [8.0]}, label="b")
+        frame = runs("goal", data_root=tmp)
+        assert "conditional_entropy_response" not in frame.columns
+        assert frame["conditional_entropy_response (a)"].tolist() == [1.0]
+        assert frame["conditional_entropy_response (b)"].tolist() == [2.0]
+        # Keys only one pass reports stay plain.
+        assert frame["mutual_information_kt"].tolist() == [9.0]
+        assert frame["codeword_entropy_mm"].tolist() == [8.0]
+
+
+def test_two_passes_agreeing_keep_one_plain_key():
+    """Identical values are not a conflict; do not split them pointlessly."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp) / "goal"
+        config = sweep(dict(RECEPTOR), n_genes=[3])[0]
+        logger = SweepLogger([config], "demo", root)
+        run_logger = logger.run_logger(config)
+        _checkpoint(run_logger)
+        run_logger.save_results({"grouped_n_states": [32]}, label="a")
+        run_logger.save_results({"grouped_n_states": [32]}, label="b")
+        assert runs("goal", data_root=tmp)["grouped_n_states"].tolist() == [32]
 
 
 def test_optional_sequence_fields_load_when_unset():

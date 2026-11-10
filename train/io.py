@@ -167,24 +167,35 @@ def load_run(run_dir):
     """(Config, stats DataFrame, results dict) for one run directory.
 
     Results merge every test_<label>.json present. Two estimators measuring the
-    same model produce differently named keys, so they sit side by side and a
-    figure can plot one against the other. A key written by two passes raises
-    rather than letting the last file read win silently.
+    same model mostly produce differently named keys, so they sit side by side
+    and a figure can plot one against the other.
+
+    When two passes DO report the same key with different values, as happens
+    for H(Y|X) measured at two different budgets, neither is wrong and neither
+    may win: both are kept as "<key> (<label>)" and the plain key is dropped.
+    A figure asking for the plain name then fails on a missing column instead
+    of silently reading whichever file was listed last.
     """
     run_dir = Path(run_dir)
     config = load_config(run_dir)
     stats = (pd.read_csv(run_dir / "stats.csv")
              if (run_dir / "stats.csv").is_file() else pd.DataFrame())
-    results, source = {}, {}
-    for path in sorted(run_dir.glob("test_*.json")):
-        label = path.stem[len("test_"):]
-        for key, value in json.loads(path.read_text()).items():
-            if key in results and results[key] != value:
-                raise ValueError(
-                    f"{run_dir}: {key!r} differs between test_{source[key]}.json "
-                    f"and test_{label}.json. Two passes cannot claim the same "
-                    f"measurement; give one of them its own key.")
-            results[key], source[key] = value, label
+    passes = {path.stem[len("test_"):]: json.loads(path.read_text())
+              for path in sorted(run_dir.glob("test_*.json"))}
+    seen = {}
+    for label, values in passes.items():
+        for key, value in values.items():
+            seen.setdefault(key, []).append((label, value))
+
+    results = {}
+    for key, entries in seen.items():
+        distinct = {json.dumps(v, sort_keys=True) for _, v in entries}
+        if len(entries) == 1 or len(distinct) == 1:
+            results[key] = entries[0][1]
+        else:
+            # Two budgets, two estimates of one quantity. Keep both, labelled.
+            for label, value in entries:
+                results[f"{key} ({label})"] = value
     return config, stats, results
 
 
