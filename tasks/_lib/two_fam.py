@@ -20,10 +20,10 @@ While pi dG(R_1) > (1 - pi) G(1) every receptor goes to the more probable
 family; after that the weighted marginal gains equalise. In the log regime
 G ~ s log2 n this makes R_f proportional to pi_f.
 
-G IS NOT SIMULATED HERE. It is measured by the large_R sweep at D = 2,
-conc_std = 1.7372, whose parameters this task copies, and interpolated linearly
+G IS NOT SIMULATED HERE. It is measured by the analytic_baseline sweep at D = 8,
+conc_std = 0.2171, whose parameters this task copies, and interpolated linearly
 in log2 n between the measured R by interp_G. So two_families cannot be
-analysed until large_R has been run and measured.
+analysed until analytic_baseline has been run and measured.
 """
 import math
 

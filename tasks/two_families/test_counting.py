@@ -19,7 +19,7 @@ from tasks._lib.measure import measure_goal
 
 MEASUREMENTS = ("codeword_entropy", "mutual_information_counting")
 LABEL = "counting"
-BATCH_SIZE = 2 ** 18        # log2 B = 18, the ceiling on any counting estimate
+BATCH_SIZE = 2 ** 21        # log2 B = 21; MI reaches ~15 bits at R = 32
 EVAL_CHUNK = 4096
 
 if __name__ == "__main__":

@@ -69,7 +69,7 @@ bookkeeping. Every one came from RUNNING something, not reading it.
 3. **Group by the design TARGET, plot the realised value.** Under a sampled
    gene-set strategy the realised mean drifts further than the target spacing.
 4. **The receptor pool saturates.** `pool_size()`; asking for more raises.
-5. **`two_families` needs `large_R` first**, at D=2, conc_std=1.7372.
+5. **`two_families` needs `analytic_baseline` first**, at D=8, conc_std=0.2171.
 6. **Two passes reporting one key** keep both as `"<key> (<label>)"` and drop
    the plain name. H(Y|X) at two budgets is the normal case.
 

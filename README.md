@@ -73,8 +73,8 @@ task has one, what the closed form expects. Use it first.
 | `large_R` | what happens past `R = D`, where counting takes over? | `train_sweep` |
 | `two_families` | does an array facing two distant families split in two? | `train_sweep` |
 
-`two_families` needs `large_R` run first at `D = 2`, `conc_std = 1.7372`: it
-takes `G(n)`, the single-family MI, from there rather than measuring it.
+`two_families` needs `analytic_baseline` run first at `D = 8`, `conc_std = 0.2171`:
+it takes `G(n)`, the single-family MI, from there rather than measuring it.
 
 ## Batch sizes are explicit
 

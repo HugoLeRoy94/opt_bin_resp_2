@@ -8,8 +8,9 @@ array,
     MI_2 ~ H(F) + max_{R_1} [ pi G(R_1) + (1-pi) G(R-R_1) ] - H(F|A)
 
 G(n) is the MI of an optimal SINGLE-family array of n receptors, and it is not
-measured here: it comes from the large_R sweep at D = 2, conc_std = 1.7372,
-interpolated in log2 n. So large_R must be run and measured first.
+measured here: it comes from the analytic_baseline sweep at D = 8,
+conc_std = 0.2171, interpolated in log2 n. So analytic_baseline must be run and
+measured first.
 
 Left: measured MI against the prediction, with H(F) marked as the floor the
 family label alone would give. Right: the allocation. Receptors are assigned to
@@ -30,22 +31,22 @@ from analysis.load import across_replicates, load_model, runs
 from tasks._lib import two_fam as TF
 
 GOAL = "two_families"
-G_GOAL = "large_R"              # where G(n) is measured
-G_DIM, G_CONC_STD = 2, 1.7372   # the single-family condition this task copies
+G_GOAL = "analytic_baseline"    # where G(n) is measured
+G_DIM, G_CONC_STD = 8, 0.2171   # the single-family condition this task copies
 MI = "codeword_entropy_mm"
 
 frame = runs(GOAL, latest_only=True)
 # family_weights is a config field, stored as "0.8,0.2"; pi is its first entry.
 pi = float(str(frame.family_weights.iloc[0]).split(",")[0])
 
-# G(n) from large_R, at the matching single-family condition.
+# G(n) from analytic_baseline, at the matching single-family condition.
 single = runs(G_GOAL, latest_only=True)
 single = single[(single.latent_dim == G_DIM)
                 & np.isclose(single.conc_std.astype(float), G_CONC_STD)]
 if single.empty:
     raise SystemExit(
         f"No {G_GOAL} run at D={G_DIM}, conc_std={G_CONC_STD}. G(n) is measured "
-        f"there, not here: run and measure large_R first.")
+        f"there, not here: run and measure {G_GOAL} first.")
 g = across_replicates(single, keys=["n_genes"]).sort_values("n_genes")
 G = TF.interp_G(g.n_genes.to_numpy(), g[MI].to_numpy())
 

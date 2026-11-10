@@ -6,17 +6,29 @@ R >> D). Same setting: gaussian kernel, one ligand per sniff, homomers, shared
 energies with Emax fixed and Ebase learned, near-hard readout.
 
 Two families appear with probabilities pi and 1 - pi, placed far enough apart
-(average_family_distance = 8 at sigma = 1) that a receptor tuned to one never
-fires for a ligand of the other. If that holds, each receptor serves exactly
-one family and
+(average_family_distance = 20 at sigma = 1, D = 8) that a receptor tuned to one
+never fires for a ligand of the other. If that holds, each receptor serves
+exactly one family and
 
     MI_2 ~ H(F) + max_{R_1} [ pi G(R_1) + (1-pi) G(R-R_1) ] - H(F|A)
 
 with G(n) the MI of an optimal single-family array of n receptors.
 
-G IS NOT MEASURED HERE. It comes from the large_R sweep at D = 2,
-conc_std = 1.7372, whose parameters this task deliberately copies, so
-large_R must be run and measured before this task can be analysed.
+REGIME. D = 8, lambda = 4, conc_std = 0.2171 (nu = 0.67, no saturation). There a
+single family is near-linear, G(n) ~ n, up to n = D + 1 = 9, and bends past it.
+Two families can host two simplices, so up to R = 18 the pair stays near-linear
+per family, MI_2 ~ 1 + G(R/2), against G(R) for one family. That gap is a few
+bits, against about 0.7 bit in the old D = 2, nu = 1.7 regime, where G was
+already logarithmic and splitting cost almost nothing.
+
+pi = 1/2. With unequal pi the rare family gets no receptor until
+pi dG(R_1) < (1-pi) G(1), which at D = 8 happens near R_1 ~ 20-30, beyond the
+measured G (n <= 16) and close to the counting ceiling.
+
+G IS NOT MEASURED HERE. It comes from the analytic_baseline sweep at D = 8,
+lambda = 4, conc_std = 0.2171, whose parameters this task copies, so
+analytic_baseline must be run and measured first. Its R grid stops at 16, which
+covers R_f = R/2 up to R = 32.
 
 Trains and checkpoints only. Measure with test_counting.py.
 
@@ -26,24 +38,28 @@ Trains and checkpoints only. Measure with test_counting.py.
 import argparse
 import time
 
-from tasks._lib import large_r as LR
 from tasks._lib import theory as T
 from tasks._lib.two_fam import h2
 from train.batching import suggest
 from train.config import sweep
 from train.sweep import Sweep
 
-D = 2
+D = 8
 SIGMA = 1.0
+LAMBDA = 4.0                   # rho = sigma sqrt(D) / lambda = 0.707
 EMAX = 10.0
 CONC_MEAN = 0.0
-CONC_STD = 1.7372              # matches large_R, so its G applies here
+CONC_STD = 0.2171              # matches analytic_baseline, so its G applies here
 TEMPERATURE = 0.05
 N_LIGANDS = 10000
 K_SUB = 5
-PI_DEFAULT = 0.8
-FAMILY_DIST_DEFAULT = 8.0      # centres far apart: no receptor serves both
-R_DEFAULT = [2, 3, 4, 6, 8, 10, 12, 16, 24, 32, 48, 64]
+PI_DEFAULT = 0.5
+# Centres are drawn at random in a ball. In D = 8 their distance concentrates:
+# 5% of draws fall below 0.65 x the average, here 13, against about 8 for one
+# receptor's reach (U* + field radius) plus the other cloud. Farther still would
+# leave the centres ~15 from the origin, where the receptors start.
+FAMILY_DIST_DEFAULT = 20.0
+R_DEFAULT = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32]
 
 
 def main():
@@ -62,7 +78,7 @@ def main():
     p.add_argument("--dry_run", action="store_true")
     a = p.parse_args()
 
-    lam = LR.lam_for(D, SIGMA)
+    lam = LAMBDA
     _, sigma_c = T.from_log10(CONC_MEAN, CONC_STD)
     params = T.Params(D=D, sigma=SIGMA, lam=lam, Emax=a.emax, sigma_c=sigma_c)
     nu = T.lambert_optimum(params)["nu_min"]
