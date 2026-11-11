@@ -58,8 +58,8 @@ for colour, nu in zip(colours, nus):
 ax.axvline(D, color="k", lw=.8, ls=":")
 ax.annotate(f"R = D = {D}", (D, ax.get_ylim()[1]), xytext=(4, -12),
             textcoords="offset points", fontsize=8)
-ax.plot(sorted(points.n_genes.unique()), points.groupby("n_genes")[CEIL].first(),
-        ":", color="0.4", lw=1, label="log2(B), the counting ceiling")
+#ax.plot(sorted(points.n_genes.unique()), points.groupby("n_genes")[CEIL].first(),
+#        ":", color="0.4", lw=1, label="log2(B), the counting ceiling")
 ax.set(xlabel="receptors R (= genes, homomers)", ylabel="MI [bits]",
        title="solid: measured codewords   dashed: closed form   band: 1 sd across worlds")
 ax.legend(fontsize=8)
@@ -87,3 +87,5 @@ for a in axes:
     a.grid(alpha=.2)
 plt.tight_layout()
 plt.show()
+
+# %%

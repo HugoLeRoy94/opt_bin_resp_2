@@ -9,6 +9,9 @@ alone would give. Right: the allocation. Receptors are assigned to the family
 whose centre they sit nearest, read off the trained model, and compared with
 the two naive allocations: every receptor on the more probable family, and a
 split proportional to pi.
+
+One line per arm: the moved receptor refined before acceptance, or judged as
+placed (train/moves.py).
 """
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,14 +27,18 @@ frame = runs(GOAL, latest_only=True)
 # family_weights is a config field, stored as "0.8,0.2"; pi is its first entry.
 pi = float(str(frame.family_weights.iloc[0]).split(",")[0])
 
-points = across_replicates(frame, keys=["n_genes"]).sort_values("n_genes")
-R_values = points.n_genes.to_numpy()
+ARMS = {True: ("refined before acceptance", "tab:blue"),
+        False: ("judged as placed", "tab:orange")}
+points = across_replicates(frame, keys=["n_genes", "family_move_relax"]).sort_values("n_genes")
+R_values = np.sort(frame.n_genes.unique())
 
 # %%
 fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.4))
-axes[0].plot(R_values, points[MI], "o-", color="tab:blue", label="measured")
-axes[0].fill_between(R_values, points[f"{MI} lo"], points[f"{MI} hi"],
-                     color="tab:blue", alpha=.15, linewidth=0)
+for relax, (label, color) in ARMS.items():
+    arm = points[points.family_move_relax == relax]
+    axes[0].plot(arm.n_genes, arm[MI], "o-", color=color, label=label)
+    axes[0].fill_between(arm.n_genes, arm[f"{MI} lo"], arm[f"{MI} hi"],
+                         color=color, alpha=.15, linewidth=0)
 axes[0].axhline(TF.h2(pi), color="tab:red", lw=.8, ls=":",
                 label=f"H(F) = {TF.h2(pi):.3f}, the family label alone")
 axes[0].set(xscale="log", xlabel="receptors R", ylabel="MI [bits]",
@@ -46,12 +53,16 @@ for _, row in frame.iterrows():
     array = TF.array_of(env, receptor_indices)
     group = np.argmin(((array["pos"][:, None, :] - array["centres"][None]) ** 2).sum(-1),
                       axis=1)
-    observed.append(dict(n_genes=row.n_genes, R_1=int((group == 0).sum())))
-observed = across_replicates(pd.DataFrame(observed), keys=["n_genes"]).sort_values("n_genes")
+    observed.append(dict(n_genes=row.n_genes, family_move_relax=row.family_move_relax,
+                         R_1=int((group == 0).sum())))
+observed = across_replicates(pd.DataFrame(observed),
+                             keys=["n_genes", "family_move_relax"]).sort_values("n_genes")
 
-axes[1].plot(observed.n_genes, observed.R_1, "o-", color="tab:blue", label="observed")
-axes[1].fill_between(observed.n_genes, observed["R_1 lo"], observed["R_1 hi"],
-                     color="tab:blue", alpha=.15, linewidth=0)
+for relax, (label, color) in ARMS.items():
+    arm = observed[observed.family_move_relax == relax]
+    axes[1].plot(arm.n_genes, arm.R_1, "o-", color=color, label=label)
+    axes[1].fill_between(arm.n_genes, arm["R_1 lo"], arm["R_1 hi"],
+                         color=color, alpha=.15, linewidth=0)
 axes[1].plot(R_values, R_values, ":", color="0.5", lw=1, label="all on family 1")
 axes[1].plot(R_values, pi * R_values, "-.", color="tab:green", lw=1,
              label=f"proportional, R_1 = {pi:g} R")

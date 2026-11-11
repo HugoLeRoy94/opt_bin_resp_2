@@ -30,6 +30,12 @@ lambda = 4, conc_std = 0.2171, whose parameters this task copies, so
 analytic_baseline must be run and measured first. Its R grid stops at 16, which
 covers R_f = R/2 up to R = 32.
 
+FAMILY MOVES. At this distance a receptor started near the origin never fires,
+and one near a family can never reach the other by gradient. Receptors start
+near random families and jump between them (train/moves.py). Each R is run in
+two arms: moved receptor refined before Metropolis acceptance, or judged as
+placed. The comparison is temporary, for the family-moves branch.
+
 Trains and checkpoints only. Measure with test_counting.py.
 
     python -m tasks.two_families.train_sweep --dry_run
@@ -72,6 +78,8 @@ def main():
     p.add_argument("--replicates", type=int, default=1)
     p.add_argument("--epochs_per_R", type=int, default=600)
     p.add_argument("--epochs_base", type=int, default=2000)
+    p.add_argument("--family_moves", type=int, default=10,
+                   help="proposed jumps per receptor over the annealing window")
     p.add_argument("--emax", type=float, default=EMAX)
     p.add_argument("--data_root", default="data/two_families")
     p.add_argument("--gpu_gb", type=float, default=80.0)
@@ -83,7 +91,9 @@ def main():
     params = T.Params(D=D, sigma=SIGMA, lam=lam, Emax=a.emax, sigma_c=sigma_c)
     nu = T.lambert_optimum(params)["nu_min"]
     tiled_R = a.R * a.replicates
-    print(f"grid: {len(a.R)} R x {a.replicates} replicates = {len(tiled_R)} runs")
+    relax = [True] * len(tiled_R) + [False] * len(tiled_R)
+    tiled_R = tiled_R * 2
+    print(f"grid: {len(a.R)} R x {a.replicates} replicates x 2 arms = {len(tiled_R)} runs")
     print(f"  D = {D}, lambda = {lam:.3f}, nu = {nu:.3f}, pi = {a.pi}, "
           f"family distance = {a.family_dist}")
     print(f"  H(F) = {h2(a.pi):.4f} bits, the most the family label alone can carry")
@@ -108,8 +118,10 @@ def main():
             mi="kt", grouped=False, lr=0.01, per_epoch_measure=False,
             eval_chunk_size=4096,
             measurement_fns=("codeword_entropy",),
+            family_moves=a.family_moves,
         ),
         n_genes=tiled_R,                       # homomers: R = n_genes
+        family_move_relax=relax,
         epochs=[int(a.epochs_per_R * R + a.epochs_base) for R in tiled_R],
         batch_size=[b["batch_size"] for b in batches],
         test_batch_size=[b["test_batch_size"] for b in batches],
@@ -119,9 +131,10 @@ def main():
 
     if a.dry_run:
         print(f"\n{len(runs)} runs\n")
-        print(f"  {'R':>4} {'epochs':>7} {'batch':>8}")
+        print(f"  {'R':>4} {'relax':>6} {'epochs':>7} {'batch':>8}")
         for run in runs:
-            print(f"  {run.n_genes:>4} {run.epochs:>7} {run.batch_size:>8}")
+            print(f"  {run.n_genes:>4} {str(run.family_move_relax):>6} "
+                  f"{run.epochs:>7} {run.batch_size:>8}")
         return
 
     start = time.time()

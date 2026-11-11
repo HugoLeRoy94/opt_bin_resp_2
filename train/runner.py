@@ -23,6 +23,7 @@ from estimate.measurements import REGISTRY, codeword_entropy, response_counting_
 from model.cells import CellArray, CellReadout, cell_activity
 from model.environment import LigandEnvironment, LogNormalConcentration
 from model.receptors import BinaryReceptor, compute_initial_temperature
+from train.moves import FamilyMoves, place_near_families
 
 KT_TRAIN_TILE = 4096
 EVAL_TILE = 2048
@@ -291,6 +292,8 @@ class Runner:
     def _train(self, env, physics, loss_fn, optimizer, receptor_indices):
         cfg = self.config
         is_mi = True        # every objective is an MI objective now
+        if cfg.family_moves:
+            place_near_families(env, torch.arange(env.n_genes))
         start_temp = (compute_initial_temperature(env, receptor_indices)
                       if cfg.initial_temperature == "auto"
                       else float(cfg.initial_temperature))
@@ -298,6 +301,10 @@ class Runner:
         anneal_epochs = max(1, int(0.8 * cfg.epochs))
         ri_batch = receptor_indices if env.use_interface_model else None
         log_every = max(1, cfg.epochs // 100)
+        moves = None
+        if cfg.family_moves:
+            physics.temperature = start_temp
+            moves = FamilyMoves(self, env, physics, loss_fn, optimizer, anneal_epochs)
 
         stats = []
         for epoch in range(cfg.epochs):
@@ -312,6 +319,8 @@ class Runner:
             loss = loss_fn(activity)
             loss.backward()
             optimizer.step()
+            if moves is not None and moves.due(epoch):
+                moves.step(epoch)
 
             if epoch % log_every:
                 continue
@@ -328,6 +337,8 @@ class Runner:
             if is_mi:
                 stat["train_mutual_information"] = float(-loss.item())
             stat["lr"] = optimizer.param_groups[0]["lr"]
+            if moves is not None:
+                stat["moves_accepted"] = moves.accepted
             stats.append(stat)
 
         physics.temperature = end_temp

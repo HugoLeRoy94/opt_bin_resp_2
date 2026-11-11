@@ -69,6 +69,13 @@ class Config:
     # Requires cell mode: receptors have nothing to group.
     grouped: bool = False
 
+    # --- Family moves, homomers only. 0 = off. When on, receptors start near
+    # random families, and each receptor gets this many proposed jumps to a
+    # random family over the annealing window, accepted by Metropolis on MI.
+    # See train/moves.py.
+    family_moves: int = 0
+    family_move_relax: bool = True             # TEMPORARY (family-moves branch)
+
     # --- Schedules and performance (no effect on the model) ---
     initial_temperature: Union[float, str] = "auto"   # "auto" calibrates from a batch
     recompute_backward: bool = False           # gradient-checkpoint the KT inner loop
@@ -124,6 +131,9 @@ class Config:
             raise ValueError("Grouping requires cell mode: receptors have "
                              "nothing to group.")
 
+        if self.family_moves and self.is_cell_mode():
+            raise ValueError("family_moves requires one homomer per gene.")
+
         if self.is_cell_mode():
             cells = build_cell_array(
                 repertoires=self.cell_receptors, k_sub=self.k_sub,
@@ -148,6 +158,11 @@ class Config:
             else:
                 # No array asked for: one homomer per gene.
                 self.receptor_indices = [[i] * self.k_sub for i in range(self.n_genes)]
+
+        homomers = [[i] * self.k_sub for i in range(self.n_genes)]
+        if self.family_moves and (self.use_interface_model
+                                  or self.receptor_indices != homomers):
+            raise ValueError("family_moves requires one homomer per gene.")
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
