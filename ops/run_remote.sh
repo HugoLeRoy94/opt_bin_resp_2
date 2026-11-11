@@ -24,7 +24,7 @@ set -e
 
 SERVER="${OCTOPUS_DATA_SERVER:-leroy@10.187.172.7}"
 REMOTE_ROOT="${OCTOPUS_REMOTE_ROOT:-/home/leroy/opt_bin_resp_2}"
-REMOTE_DATA="${OCTOPUS_REMOTE_DATA_ROOT:-/storage/leroy/data}"
+REMOTE_DATA="${OCTOPUS_REMOTE_DATA_ROOT:-/storage/leroy/data_2}"
 COMPOSE="$REMOTE_ROOT/docker-compose.server.yaml"
 
 TASK="$1"; SCRIPT="$2"; GPU="${3:-0}"

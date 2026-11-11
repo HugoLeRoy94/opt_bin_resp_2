@@ -34,7 +34,7 @@ services:
       - ./tasks:/app/tasks:ro,z
       - ./ops:/app/ops:ro,z
       # Results. The only writable mount.
-      - ${OCTOPUS_REMOTE_DATA_ROOT:-/storage/leroy/data}:/app/data:z
+      - ${OCTOPUS_REMOTE_DATA_ROOT:-/storage/leroy/data_2}:/app/data:z
     environment:
       - PYTHONPATH=/app
       - http_proxy=${http_proxy:-}

@@ -157,6 +157,10 @@ python ops/manage_data.py curate [goal ...]     # label sweeps keep or delete
 python ops/manage_data.py sync   [goal ...]     # apply deletions, mirror down
 ```
 
+Raw data live on the cluster under `/storage/leroy/data_2`, separate from the
+old repo's `/storage/leroy/data`, so the two code bases never read each
+other's runs. Locally they mirror to this repo's `data/`.
+
 The cluster is authoritative for raw data; `curation.csv` is authoritative for
 the human keep/delete decision, and is tracked in git so it survives the data
 being deleted or re-synced. A kept sweep needs a short label saying why.

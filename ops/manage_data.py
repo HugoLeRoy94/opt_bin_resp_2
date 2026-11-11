@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LOCAL_DATA = Path(os.environ.get("OCTOPUS_DATA_ROOT", ROOT / "data")).resolve()
 SERVER = os.environ.get("OCTOPUS_DATA_SERVER", "leroy@10.187.172.7")
 REMOTE_DATA = os.environ.get("OCTOPUS_REMOTE_DATA_ROOT",
-                             "/storage/leroy/data").rstrip("/")
+                             "/storage/leroy/data_2").rstrip("/")
 
 _COMPONENT = re.compile(r"^[A-Za-z0-9_.-]+$")
 _TIMESTAMP = re.compile(r"\d{8}_\d{6}")
