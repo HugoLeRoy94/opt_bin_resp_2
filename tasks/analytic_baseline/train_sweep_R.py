@@ -48,7 +48,7 @@ CONC_MEAN = 0.0        # log10; only sets the Ebase init, which is learnable
 # nu by 2.3; see theory.from_log10.
 CONC_STD_DEFAULT = [1.7372, 0.8686, 0.4343, 0.2171]
 R_DEFAULT = [2, 3, 4, 5, 6, 8, 10, 12, 14, 16]
-TEMPERATURE = 0.05     # needs T << 0.1 * Delta_priv ~ 0.11
+TEMPERATURE = 0.005     # needs T << 0.1 * Delta_priv ~ 0.11
 N_LIGANDS = 10000
 K_SUB = 5
 
